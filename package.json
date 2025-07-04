@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg-promise": "^11.14.0"
+  },
+  "scripts": {
+    "npm start": "node --env-file=.env server.js"
+  }
+}
