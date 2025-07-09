@@ -97,24 +97,29 @@ const registerUser = async function (req, res) {
         const saltrounds = 10;
         const hashed_password = await bcrypt.hash(password, saltrounds);
 
-        // Seria interessante posteriormente estudar para implementar o BEGIN TRANSACTION, permitindo que apenas ocorra o INSERT users se ocorrer o INSERT shopping_cart
-         
-        const insert_user = await db.one({
-            text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING user_id, username, password, email, created_at',
-            values: [username, hashed_password, email, dateTime]
-        });
+        const last_user = await db.one('SELECT user_id FROM Users ORDER BY user_id DESC LIMIT 1')
+        let insert_user = '';
+        await db.tx(async (t) => {
+            
+            insert_user = await t.one({
+                text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING user_id, username, password, email, created_at',
+                values: [username, hashed_password, email, dateTime]
+            });
 
-        const shooping_cart_status = 'Aberto';
-        await db.none({
-            text: 'INSERT INTO Shopping_Cart (user_id, status, created_at) VALUES ($1, $2, $3)',
-            values: [insert_user.user_id, shooping_cart_status, dateTime]
-        });
+            const shooping_cart_status = 'Aberto';
+            const create_shopping_cart = await t.none({
+                text: 'INSERT INTO Shopping_Cart (user_id, status, created_at) VALUES ($1, $2, $3)',
+                values: [last_user.user_id, shooping_cart_status, dateTime]
+            });
+
+            return t.batch([insert_user, create_shopping_cart]);
+        })
 
         return res.status(201).send(insert_user);
     } catch(e) {
         console.log(e);
 
-        let error = new Error(400, 'Erro ao criar um novo usuário');
+        let error = new Error(400, 'Erro ao criar um novo usuário e carrinho de compras.');
         return res.status(400).send(error)
     }
 }
