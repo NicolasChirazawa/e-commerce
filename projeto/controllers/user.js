@@ -124,4 +124,64 @@ const registerUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser,  username_verification, password_verification, email_verification }
+const loginUser = async function (req, res) {
+    if(req.body === undefined) {
+        let error = new Error(400, 'A requisição não tem corpo');
+        return res.status(400).send(error);
+    }
+
+    const { username, password, email } = req.body;
+
+    if(username === undefined && email === undefined) {
+        let error = new Error(400, 'Insira o email ou o username.');
+        return res.status(400).send(error);
+    }
+
+    let loginChoose = '';
+    if(password === undefined) {
+        let error = new Error(400, 'Insira a senha.');
+        return res.status(400).send(error);
+    }
+
+    if(username !== '') {
+        loginChoose = 'username';
+    } else if(email !== '') {
+        loginChoose = 'email';
+    }
+
+    try {
+        let user_search = '';
+        if(loginChoose === 'username') {
+            user_search = await db.oneOrNone({
+                text: 'SELECT password FROM users WHERE username = $1',
+                values: [username]
+            });
+        } else if(loginChoose === 'email') {
+                user_search = await db.oneOrNone({
+                text: 'SELECT password FROM users WHERE email = $1',
+                values: [username]
+            });
+        }
+
+        if(user_search === null) {
+            const user_not_found = new Error(404, 'Usuário não encontrado.');
+            return res.status(404).send(user_not_found);
+        }
+
+        const password_crypto_verification = await bcrypt.compare(password, user_search.password);
+
+        if(password_crypto_verification === false) {
+            const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
+            return res.status(400).send(loginFailed);
+        }
+
+        return res.status(200).send('');
+    } catch(e) {
+        console.log(e);
+
+        let error = new Error(400, 'Erro no processamento do login.');
+        return res.status(400).send(error)
+    }
+}
+
+module.exports = { registerUser, loginUser, username_verification, password_verification, email_verification }
