@@ -5,7 +5,8 @@
     "pg-promise": "^11.14.0"
   },
   "scripts": {
-    "start": "node --env-file=.env ./server.js"
+    "start": "node --env-file=.env ./server.js",
+    "test": "node --test"
   }
 }
 

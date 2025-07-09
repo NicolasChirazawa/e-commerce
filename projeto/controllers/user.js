@@ -16,6 +16,7 @@ function password_verification(password) {
 
     if(password.length < 5) {
         password_conditions.push('A senha deve ter ao menos 5 caracteres.');
+
     }
     if(password.search(/[A-Z]/) == -1) {
         password_conditions.push('A senha deve ter ao menos um caractere maiúsculo.');
@@ -105,3 +106,4 @@ const registerUser = async function (req, res) {
 }
 
 module.exports = { registerUser }
+module.exports = { username_verification, password_verification, email_verification }
