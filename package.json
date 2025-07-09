@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "pg-promise": "^11.14.0"
@@ -9,4 +10,3 @@
     "test": "node --test"
   }
 }
-

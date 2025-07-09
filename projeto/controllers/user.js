@@ -1,5 +1,6 @@
 const db = require('../conexao_banco');
 const Error = require('../models/error.js');
+const bcrypt = require('bcrypt');
 
 function username_verification(username) {
     let username_conditions = [];
@@ -16,7 +17,9 @@ function password_verification(password) {
 
     if(password.length < 5) {
         password_conditions.push('A senha deve ter ao menos 5 caracteres.');
-
+    }
+    if(password.length > 30) {
+        password_conditions.push('A senha deve possuir no máximo 30 caracteres.');
     }
     if(password.search(/[A-Z]/) == -1) {
         password_conditions.push('A senha deve ter ao menos um caractere maiúsculo.');
@@ -91,9 +94,20 @@ const registerUser = async function (req, res) {
         let informations_DateTime = new Date();
         let dateTime = informations_DateTime.getFullYear() + '/' + (informations_DateTime.getMonth() + 1) + '/' + informations_DateTime.getDay() + ' ' + informations_DateTime.getHours() + ':' + informations_DateTime.getMinutes() + ':' + informations_DateTime.getSeconds();
 
-        let insert_user = await db.one({
-            text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING username, password, email, created_at',
-            values: [username, password, email, dateTime]
+        const saltrounds = 10;
+        const hashed_password = await bcrypt.hash(password, saltrounds);
+
+        // Seria interessante posteriormente estudar para implementar o BEGIN TRANSACTION, permitindo que apenas ocorra o INSERT users se ocorrer o INSERT shopping_cart
+         
+        const insert_user = await db.one({
+            text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING user_id, username, password, email, created_at',
+            values: [username, hashed_password, email, dateTime]
+        });
+
+        const shooping_cart_status = 'Aberto';
+        await db.none({
+            text: 'INSERT INTO Shopping_Cart (user_id, status, created_at) VALUES ($1, $2, $3)',
+            values: [insert_user.user_id, shooping_cart_status, dateTime]
         });
 
         return res.status(201).send(insert_user);
@@ -105,5 +119,4 @@ const registerUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser }
-module.exports = { username_verification, password_verification, email_verification }
+module.exports = { registerUser,  username_verification, password_verification, email_verification }
