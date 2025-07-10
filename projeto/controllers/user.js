@@ -210,7 +210,80 @@ const selectUser = async function (req, res) {
     }
 }
 
-/*
+const updateUser = async function (req, res) {
+    if(req.body === undefined) {
+        let error = new Error(400, 'A requisição não tem corpo');
+        return res.status(400).send(error);
+    }
+
+    const user_id = req.params.user_id;
+    const { username, password, email } = req.body;
+
+    if(username == undefined || password == undefined || email == undefined) {
+        let error = new Error(400, 'Nenhum dos campos deve estar vazio.');
+        return res.status(400).send(error);
+    }
+
+    try {
+        let verification_duplication_user = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE user_id = $1',
+            values: [user_id]
+        });
+
+        if(verification_duplication_user === null) {
+            let error = new Error(400, 'O id do usuário informado não está na base de dados.');
+            return res.status(400).send(error);
+        }
+    } catch (e) {
+        let error = new Error(400, 'Erro no processamento do usuário.');
+        return res.status(400).send(error); 
+    }
+
+    let username_conditions = username_verification(username);
+    let password_conditions = password_verification(password);
+    let email_conditions = email_verification(email);
+
+    if(username_conditions.length > 0 || password_conditions.length > 0 || email_conditions.length > 0) {
+        let compilation_errors = {
+            username: username_conditions,
+            password: password_conditions,
+            email: email_conditions
+        }
+
+        let error = new Error(compilation_errors, 400);
+        return res.status(400).send(error);
+    }
+
+    try {
+        const saltrounds = 10;
+        const hashed_password = await bcrypt.hash(password, saltrounds);
+
+        const userChoosed = await db.one({
+            text: "SELECT created_at, last_login FROM users WHERE user_id = $1",
+            values: [user_id]
+        });
+
+        await db.tx(async (t) => {
+            const userChoosed = await t.one({
+                text: "SELECT created_at, last_login FROM users WHERE user_id = $1",
+                values: [user_id]
+            });
+
+            const updateUserChoosed = await t.none({
+                text: 'UPDATE users SET username = $1, password = $2, email = $3, created_at = $4, last_login = $5 WHERE user_id = $6' ,
+                values: [username, hashed_password, email, userChoosed.created_at, userChoosed.last_login, user_id]
+            });
+
+            return t.batch([userChoosed, updateUserChoosed])
+        });
+        return res.status(204).send('');
+    } catch(e) {
+        console.log(e);
+        let error = new Error(400, 'Erro ao atualizar o usuário.');
+        return res.status(400).send(error)
+    }
+}
+
 const deleteUser = async function (req, res) {
 
     const user_id = req.params.user_id; 
@@ -218,17 +291,17 @@ const deleteUser = async function (req, res) {
     try {
         await db.tx(async (t) => {
             
-            const deleted_shopping_carts = await t.result({
-                text: 'DELETE FROM shopping_cart WHERE user_id = $1',
+            const deleted_shopping_carts = await t.none({
+                text: 'DELETE FROM Shopping_Cart WHERE user_id = $1',
                 values: [user_id]
             });
 
-            const deleted_user = await t.result({
+            const deleted_user = await t.none({
                 text: 'DELETE FROM users WHERE user_id = $1',
                 values: [user_id]
             });
 
-            return db.batch([deleted_user, deleted_shopping_carts])
+            return t.batch([deleted_shopping_carts, deleted_user])
         });
         return res.status(204).send('');
     } catch (e) {
@@ -236,6 +309,5 @@ const deleteUser = async function (req, res) {
         return res.status(400).send(error);
     }
 }
-*/
 
-module.exports = { registerUser, loginUser, selectAllUsers, selectUser,  password_verification, email_verification }
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, deleteUser, password_verification, email_verification }
