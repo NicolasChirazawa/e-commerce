@@ -1,3 +1,4 @@
+const { text } = require('express');
 const db = require('../conexao_banco');
 const Error = require('../models/error.js');
 const bcrypt = require('bcrypt');
@@ -199,13 +200,19 @@ const selectUser = async function (req, res) {
     const user_id = req.params.user_id; 
 
     try {
-        const all_users = await db.oneOrNone({
+        const choosedUser = await db.oneOrNone({
             text: 'SELECT * FROM users WHERE user_id = $1',
             values: [user_id]
         });
-        return res.status(200).send(all_users);
+
+        if(choosedUser === null) {
+            let error = new Error(404, 'Não foi encontrado um usuário com o id informado.')
+            return res.status(404).send(error);
+        }
+
+        return res.status(200).send(choosedUser);
     } catch (e) {
-        let error = new Error(400, 'Não foi possível selecionar os usuários.');
+        let error = new Error(400, 'Não foi possível selecionar o usuário.');
         return res.status(400).send(error);
     }
 }
