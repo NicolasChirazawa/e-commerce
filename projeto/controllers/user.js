@@ -184,4 +184,58 @@ const loginUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, username_verification, password_verification, email_verification }
+const selectAllUsers = async function (req, res) {
+    try {
+        const all_users = await db.many('SELECT * FROM users');
+        return res.status(200).send(all_users);
+    } catch (e) {
+        let error = new Error(400, 'Não foi possível selecionar os usuários.');
+        return res.status(400).send(error);
+    }
+}
+
+const selectUser = async function (req, res) {
+
+    const user_id = req.params.user_id; 
+
+    try {
+        const all_users = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE user_id = $1',
+            values: [user_id]
+        });
+        return res.status(200).send(all_users);
+    } catch (e) {
+        let error = new Error(400, 'Não foi possível selecionar os usuários.');
+        return res.status(400).send(error);
+    }
+}
+
+/*
+const deleteUser = async function (req, res) {
+
+    const user_id = req.params.user_id; 
+
+    try {
+        await db.tx(async (t) => {
+            
+            const deleted_shopping_carts = await t.result({
+                text: 'DELETE FROM shopping_cart WHERE user_id = $1',
+                values: [user_id]
+            });
+
+            const deleted_user = await t.result({
+                text: 'DELETE FROM users WHERE user_id = $1',
+                values: [user_id]
+            });
+
+            return db.batch([deleted_user, deleted_shopping_carts])
+        });
+        return res.status(204).send('');
+    } catch (e) {
+        let error = new Error(400, 'Não foi possível deletar o usuário.');
+        return res.status(400).send(error);
+    }
+}
+*/
+
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser,  password_verification, email_verification }

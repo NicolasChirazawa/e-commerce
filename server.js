@@ -13,6 +13,9 @@ async function main() {
     let user = require('./projeto/controllers/user.js');
     app.post('/registerUser', user.registerUser);
     app.post('/loginUser', user.loginUser);
+    app.get('/user', user.selectAllUsers);
+    app.get('/user/:user_id', user.selectUser);
+    // app.delete('/user/:user_id', user.deleteUser);
 
     app.listen(port, () => {
         console.log(`Server conectado na porta ${port}`);
