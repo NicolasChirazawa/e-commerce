@@ -1,4 +1,3 @@
-const { text } = require('express');
 const db = require('../conexao_banco');
 const Error = require('../models/error.js');
 const bcrypt = require('bcrypt');
@@ -238,8 +237,8 @@ const updateUser = async function (req, res) {
         });
 
         if(verification_duplication_user === null) {
-            let error = new Error(400, 'O id do usuário informado não está na base de dados.');
-            return res.status(400).send(error);
+            let error = new Error(404, 'O id do usuário informado não está na base de dados.');
+            return res.status(404).send(error);
         }
     } catch (e) {
         let error = new Error(400, 'Erro no processamento do usuário.');
@@ -264,11 +263,6 @@ const updateUser = async function (req, res) {
     try {
         const saltrounds = 10;
         const hashed_password = await bcrypt.hash(password, saltrounds);
-
-        const userChoosed = await db.one({
-            text: "SELECT created_at, last_login FROM users WHERE user_id = $1",
-            values: [user_id]
-        });
 
         await db.tx(async (t) => {
             const userChoosed = await t.one({
@@ -317,4 +311,87 @@ const deleteUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, deleteUser, password_verification, email_verification }
+const patchUser = async function (req, res) {
+    if(req.body === undefined) {
+        let error = new Error(400, 'A requisição não tem corpo');
+        return res.status(400).send(error);
+    }
+
+    const user_id = req.params.user_id;
+    const { username, password, email } = req.body;
+
+    if(username == undefined && password == undefined && email == undefined) {
+        let error = new Error(400, 'Algum dos campos devem estar informados.');
+        return res.status(400).send(error);
+    }
+
+    try {
+        let verification_duplication_user = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE user_id = $1',
+            values: [user_id]
+        });
+
+        if(verification_duplication_user === null) {
+            let error = new Error(404, 'O id do usuário informado não está na base de dados.');
+            return res.status(404).send(error);
+        }
+    } catch (e) {
+        let error = new Error(400, 'Erro no processamento do usuário.');
+        return res.status(400).send(error); 
+    }
+
+    let username_conditions = [];
+    let password_conditions = [];
+    let email_conditions = [];
+    let compilation_errors = {};
+    let query_update_text = [];
+    let query_update_values = [];
+
+    if(username !== undefined) { 
+        username_conditions = username_verification(username); 
+        compilation_errors['username'] = username_conditions;
+
+        query_update_text.push(`username = $${query_update_text.length + 1}`);
+        query_update_values.push(username);
+    }
+    if(password !== undefined) { 
+        password_conditions = password_verification(password); 
+        compilation_errors['password'] = password_conditions;
+
+        const saltrounds = 10;
+        const hashed_password = await bcrypt.hash(password, saltrounds);
+
+        query_update_text.push(`password = $${query_update_text.length + 1}`);
+        query_update_values.push(hashed_password);
+    }
+    if(email !== undefined) { 
+        email_conditions = email_verification(email); 
+        compilation_errors['email'] = email_conditions;
+
+        query_update_text.push(`email = $${query_update_text.length + 1}`);
+        query_update_values.push(email);
+    }
+
+    if(Object.values(compilation_errors).flat().length !== 0) {
+        let error = new Error(compilation_errors, 400);
+        return res.status(400).send(error);
+    };
+
+    try {
+        let quantidade_campos = query_update_text.length;
+        query_update_text = query_update_text.join(',');
+
+        const patchedUserChoosed = await db.none({
+            text: `UPDATE users SET ${query_update_text} WHERE user_id = $${quantidade_campos + 1}` ,
+            values: [...query_update_values, user_id]
+        });
+
+        return res.status(204).send(patchedUserChoosed);
+    } catch(e) {
+        console.log(e);
+        let error = new Error(400, 'Erro ao atualizar o usuário.');
+        return res.status(400).send(error)
+    }
+}
+
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification, email_verification }

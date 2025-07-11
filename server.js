@@ -17,6 +17,7 @@ async function main() {
     app.get('/user/:user_id', user.selectUser);
     app.put('/user/:user_id', user.updateUser);
     app.delete('/user/:user_id', user.deleteUser);
+    app.patch('/user/:user_id', user.patchUser);
 
     app.listen(port, () => {
         console.log(`Server conectado na porta ${port}`);
