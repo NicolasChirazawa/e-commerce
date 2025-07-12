@@ -11,13 +11,13 @@ async function main() {
     if(await testarConexaoBanco(db) === false) { return }
     
     let user = require('./projeto/controllers/user.js');
-    app.post('/registerUser', user.registerUser);
-    app.post('/loginUser', user.loginUser);
-    app.get('/user', user.selectAllUsers);
-    app.get('/user/:user_id', user.selectUser);
-    app.put('/user/:user_id', user.updateUser);
-    app.delete('/user/:user_id', user.deleteUser);
-    app.patch('/user/:user_id', user.patchUser);
+    app.post('/registerUser',    user.registerUser);
+    app.post('/loginUser',       user.loginUser);
+    app.get('/user',             user.verify_jwt, user.selectAllUsers);
+    app.get('/user/:user_id',    user.verify_jwt, user.selectUser);
+    app.put('/user/:user_id',    user.verify_jwt, user.updateUser);
+    app.delete('/user/:user_id', user.verify_jwt, user.deleteUser);
+    app.patch('/user/:user_id',  user.verify_jwt, user.patchUser);
 
     app.listen(port, () => {
         console.log(`Server conectado na porta ${port}`);

@@ -2,8 +2,9 @@ const db = require('../conexao_banco');
 const Error = require('../models/error.js');
 
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-function username_verification(username) {
+function username_verification (username) {
     let username_conditions = [];
 
     if(username.length < 3) {
@@ -13,7 +14,7 @@ function username_verification(username) {
     return username_conditions
 }
 
-function password_verification(password) {
+function password_verification (password) {
     let password_conditions = [];
 
     if(password.length < 5) {
@@ -38,7 +39,7 @@ function password_verification(password) {
     return password_conditions;
 }
 
-function email_verification(email) {
+function email_verification (email) {
     let email_conditions = [];
 
     if(email.search(/^([a-z0-9]+@[a-z]+(\.[a-z]{1,3}){1,2})$/i) != 0) {
@@ -48,10 +49,24 @@ function email_verification(email) {
     return email_conditions;
 }
 
-function generate_date_dmy(){
+function generate_date_dmy () {
     let informations_DateTime = new Date();
 
     return informations_DateTime.getFullYear() + '/' + (informations_DateTime.getMonth() + 1) + '/' + informations_DateTime.getDay() + ' ' + informations_DateTime.getHours() + ':' + informations_DateTime.getMinutes() + ':' + informations_DateTime.getSeconds();
+}
+
+function verify_jwt (req, res, next) {
+    const token = req.headers.authorization.split(' ')[1] ?? null;
+
+    if(token === null) { res.status(401).send('É necessário se logar para usar esse endpoint') }
+
+    try{
+        jwt.verify(token, process.env.JWT_SECRET);
+        next();
+    } catch (e) {
+        const error = new Error(401, 'O token usado é inválido.')
+        res.status(401).send(error)
+    }
 }
 
 const registerUser = async function (req, res) {
@@ -111,7 +126,7 @@ const registerUser = async function (req, res) {
                 values: [username, hashed_password, email, dateTime]
             });
 
-            const shooping_cart_status = 'Aberto';
+            const shooping_cart_status = 'Em aberto';
             const create_shopping_cart = await t.none({
                 text: 'INSERT INTO Shopping_Cart (user_id, status, created_at) VALUES ($1, $2, $3)',
                 values: [insert_user.user_id, shooping_cart_status, dateTime]
@@ -156,7 +171,7 @@ const loginUser = async function (req, res) {
         switch(loginMethodChoosed) {
             case 'username':
                 user_search = await db.oneOrNone({
-                    text: 'SELECT password FROM users WHERE username = $1',
+                    text: 'SELECT user_id, password FROM users WHERE username = $1',
                     values: [username]
                 });
 
@@ -176,7 +191,7 @@ const loginUser = async function (req, res) {
 
             case 'email':
                 user_search = await db.oneOrNone({
-                    text: 'SELECT password FROM users WHERE email = $1',
+                    text: 'SELECT user_id, password FROM users WHERE email = $1',
                     values: [email]
                 });  
                 
@@ -198,7 +213,13 @@ const loginUser = async function (req, res) {
                 return res.status(404).send(user_not_found);
         }
 
-        return res.status(200).send('');
+        const token_user = jwt.sign(
+            {user_id: user_search.user_id}, 
+            process.env.JWT_SECRET,
+            {expiresIn: '1h'}
+        )
+
+        return res.status(200).send({token: token_user});
     } catch(e) {
         console.log(e);
 
@@ -417,4 +438,4 @@ const patchUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification, email_verification }
+module.exports = { registerUser, loginUser, email_verification, verify_jwt, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification }
