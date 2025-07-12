@@ -1,5 +1,6 @@
 const db = require('../conexao_banco');
 const Error = require('../models/error.js');
+
 const bcrypt = require('bcrypt');
 
 function username_verification(username) {
@@ -47,6 +48,12 @@ function email_verification(email) {
     return email_conditions;
 }
 
+function generate_date_dmy(){
+    let informations_DateTime = new Date();
+
+    return informations_DateTime.getFullYear() + '/' + (informations_DateTime.getMonth() + 1) + '/' + informations_DateTime.getDay() + ' ' + informations_DateTime.getHours() + ':' + informations_DateTime.getMinutes() + ':' + informations_DateTime.getSeconds();
+}
+
 const registerUser = async function (req, res) {
     if(req.body === undefined) {
         let error = new Error(400, 'A requisição não tem corpo');
@@ -91,8 +98,7 @@ const registerUser = async function (req, res) {
     }
 
     try {
-        let informations_DateTime = new Date();
-        let dateTime = informations_DateTime.getFullYear() + '/' + (informations_DateTime.getMonth() + 1) + '/' + informations_DateTime.getDay() + ' ' + informations_DateTime.getHours() + ':' + informations_DateTime.getMinutes() + ':' + informations_DateTime.getSeconds();
+        let dateTime = generate_date_dmy();
 
         const saltrounds = 10;
         const hashed_password = await bcrypt.hash(password, saltrounds);
@@ -133,46 +139,64 @@ const loginUser = async function (req, res) {
     const { username, password, email } = req.body;
 
     if(username === undefined && email === undefined) {
-        let error = new Error(400, 'Insira o email ou o username.');
+        let error = new Error(400, 'Insira o username ou o email.');
         return res.status(400).send(error);
     }
-
-    let loginChoose = '';
     if(password === undefined) {
         let error = new Error(400, 'Insira a senha.');
         return res.status(400).send(error);
     }
 
-    if(username !== '') {
-        loginChoose = 'username';
-    } else if(email !== '') {
-        loginChoose = 'email';
-    }
+    const loginMethodChoosed = (username !== null ? 'username' : 'email');
 
     try {
         let user_search = '';
-        if(loginChoose === 'username') {
-            user_search = await db.oneOrNone({
-                text: 'SELECT password FROM users WHERE username = $1',
-                values: [username]
-            });
-        } else if(loginChoose === 'email') {
+        let dateTime = generate_date_dmy();
+        let password_crypto_verification = '';
+
+        switch(loginMethodChoosed) {
+            case 'username':
                 user_search = await db.oneOrNone({
-                text: 'SELECT password FROM users WHERE email = $1',
-                values: [username]
-            });
-        }
+                    text: 'SELECT password FROM users WHERE username = $1',
+                    values: [username]
+                });
 
-        if(user_search === null) {
-            const user_not_found = new Error(404, 'Usuário não encontrado.');
-            return res.status(404).send(user_not_found);
-        }
+                password_crypto_verification = await bcrypt.compare(password, user_search.password);
 
-        const password_crypto_verification = await bcrypt.compare(password, user_search.password);
+                if(password_crypto_verification === false) {
+                    const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
+                    return res.status(400).send(loginFailed);
+                }
 
-        if(password_crypto_verification === false) {
-            const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
-            return res.status(400).send(loginFailed);
+                await db.none({
+                    text: 'UPDATE users SET last_login = $1 WHERE username = $2',
+                    values: [dateTime, username]
+                });
+
+                break;
+
+            case 'email':
+                user_search = await db.oneOrNone({
+                    text: 'SELECT password FROM users WHERE email = $1',
+                    values: [email]
+                });  
+                
+                password_crypto_verification = await bcrypt.compare(password, user_search.password);
+
+                if(password_crypto_verification === false) {
+                    const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
+                    return res.status(400).send(loginFailed);
+                }
+
+                await db.none({
+                    text: 'UPDATE users SET last_login = $1 WHERE email = $2',
+                    values: [dateTime, email]
+                });
+            break;
+
+            default:
+                const user_not_found = new Error(404, 'Usuário não encontrado.');
+                return res.status(404).send(user_not_found);
         }
 
         return res.status(200).send('');
@@ -180,7 +204,7 @@ const loginUser = async function (req, res) {
         console.log(e);
 
         let error = new Error(400, 'Erro no processamento do login.');
-        return res.status(400).send(error)
+        return res.status(400).send(error);
     }
 }
 
