@@ -103,7 +103,6 @@ const registerUser = async function (req, res) {
         const saltrounds = 10;
         const hashed_password = await bcrypt.hash(password, saltrounds);
 
-        const last_user = await db.one('SELECT user_id FROM Users ORDER BY user_id DESC LIMIT 1')
         let insert_user = '';
         await db.tx(async (t) => {
             
@@ -115,7 +114,7 @@ const registerUser = async function (req, res) {
             const shooping_cart_status = 'Aberto';
             const create_shopping_cart = await t.none({
                 text: 'INSERT INTO Shopping_Cart (user_id, status, created_at) VALUES ($1, $2, $3)',
-                values: [last_user.user_id, shooping_cart_status, dateTime]
+                values: [insert_user.user_id, shooping_cart_status, dateTime]
             });
 
             return t.batch([insert_user, create_shopping_cart]);
