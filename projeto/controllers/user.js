@@ -396,7 +396,7 @@ const patchUser = async function (req, res) {
         query_update_values.push(email);
     }
 
-    if(Object.values(compilation_errors).flat().length !== 0) {
+    if(username_conditions !== 0 || password_conditions !== 0 || email_conditions !== 0) {
         let error = new Error(compilation_errors, 400);
         return res.status(400).send(error);
     };
@@ -418,4 +418,4 @@ const patchUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, email_verification, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification }
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser }
