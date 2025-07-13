@@ -1,8 +1,8 @@
-const db = require('../conexao_banco');
 const Error = require('../models/error.js');
+const db = require('../bd_connection.js');
+const getDate = require('../useful_functions.js').generate_date_dmy;
 
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 
 function username_verification (username) {
     let username_conditions = [];
@@ -47,26 +47,6 @@ function email_verification (email) {
     }
 
     return email_conditions;
-}
-
-function generate_date_dmy () {
-    let DateTime = new Date();
-
-    return DateTime.getFullYear() + '/' + (DateTime.getMonth() + 1) + '/' + DateTime.getDate() + ' ' + DateTime.getHours() + ':' + DateTime.getMinutes() + ':' + DateTime.getSeconds();
-}
-
-function verify_jwt (req, res, next) {
-    const token = req.headers.authorization.split(' ')[1] ?? null;
-
-    if(token === null) { res.status(401).send('É necessário se logar para usar esse endpoint') }
-
-    try{
-        jwt.verify(token, process.env.JWT_SECRET);
-        next();
-    } catch (e) {
-        const error = new Error(401, 'O token usado é inválido.')
-        res.status(401).send(error)
-    }
 }
 
 const registerUser = async function (req, res) {
@@ -165,7 +145,7 @@ const loginUser = async function (req, res) {
 
     try {
         let user_search = '';
-        let dateTime = generate_date_dmy();
+        let dateTime = getDate();
         let password_crypto_verification = '';
 
         switch(loginMethodChoosed) {
@@ -438,4 +418,4 @@ const patchUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, email_verification, verify_jwt, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification }
+module.exports = { registerUser, loginUser, email_verification, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, password_verification }
