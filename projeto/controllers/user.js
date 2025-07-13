@@ -50,9 +50,9 @@ function email_verification (email) {
 }
 
 function generate_date_dmy () {
-    let informations_DateTime = new Date();
+    let DateTime = new Date();
 
-    return informations_DateTime.getFullYear() + '/' + (informations_DateTime.getMonth() + 1) + '/' + informations_DateTime.getDay() + ' ' + informations_DateTime.getHours() + ':' + informations_DateTime.getMinutes() + ':' + informations_DateTime.getSeconds();
+    return DateTime.getFullYear() + '/' + (DateTime.getMonth() + 1) + '/' + DateTime.getDate() + ' ' + DateTime.getHours() + ':' + DateTime.getMinutes() + ':' + DateTime.getSeconds();
 }
 
 function verify_jwt (req, res, next) {
