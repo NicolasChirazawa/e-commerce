@@ -240,6 +240,7 @@ const selectUser = async function (req, res) {
     }
 }
 
+// Verificar atualização para username e emails já cadastrados
 const updateUser = async function (req, res) {
     if(req.body === undefined) {
         let error = new Error(400, 'A requisição não tem corpo');
@@ -255,15 +256,15 @@ const updateUser = async function (req, res) {
     }
 
     try {
-        let verification_duplication_user = await db.oneOrNone({
+        let is_user_id_on_bd = await db.oneOrNone({
             text: 'SELECT * FROM users WHERE user_id = $1',
             values: [user_id]
         });
 
-        if(verification_duplication_user === null) {
+        if(is_user_id_on_bd === null) {
             let error = new Error(404, 'O id do usuário informado não está na base de dados.');
             return res.status(404).send(error);
-        }
+        };
     } catch (e) {
         let error = new Error(400, 'Erro no processamento do usuário.');
         return res.status(400).send(error); 
@@ -335,6 +336,7 @@ const deleteUser = async function (req, res) {
     }
 }
 
+// Verificar atualização para username e emails já cadastrados
 const patchUser = async function (req, res) {
     if(req.body === undefined) {
         let error = new Error(400, 'A requisição não tem corpo');
