@@ -10,8 +10,10 @@ async function main() {
     const { testarConexaoBanco } = require('./test/verificacaoBanco.js');
     if(await testarConexaoBanco(db) === false) { return }
     
-    let user = require('./projeto/Router/user.js');
+    const user = require('./projeto/Router/user.js');
+    const product = require('./projeto/Router/product.js');
     app.use('/v1/', user);
+    app.use('/v1/', product);
 
     app.listen(port, () => {
         console.log(`Server conectado na porta ${port}`);
