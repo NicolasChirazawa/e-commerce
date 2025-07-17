@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const Error = require('../models/error.js');
 
 function verify_jwt (req, res, next) {
     if(req.headers.authorization === undefined) {
@@ -10,8 +11,9 @@ function verify_jwt (req, res, next) {
         jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch (e) {
-        const error = new Error(401, 'O token usado é inválido.')
-        res.status(401).send(error)
+        const error = new Error(401, 'O token usado é inválido.');
+
+        return res.status(401).send(error);
     }
 }
 
