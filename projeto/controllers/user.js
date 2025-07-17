@@ -3,6 +3,7 @@ const db = require('../bd_connection.js');
 const getDate = require('../useful_functions.js').generate_date_dmy;
 
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 function username_verification (username) {
     let username_conditions = [];
@@ -93,7 +94,7 @@ const registerUser = async function (req, res) {
     }
 
     try {
-        let dateTime = generate_date_dmy();
+        let dateTime = getDate();
 
         const saltrounds = 10;
         const hashed_password = await bcrypt.hash(password, saltrounds);
@@ -210,7 +211,7 @@ const loginUser = async function (req, res) {
 
 const selectAllUsers = async function (req, res) {
     try {
-        const all_users = await db.many('SELECT * FROM users');
+        const all_users = await db.many('SELECT * FROM users ORDER BY user_id');
         return res.status(200).send(all_users);
     } catch (e) {
         let error = new Error(400, 'Não foi possível selecionar os usuários.');
@@ -240,7 +241,6 @@ const selectUser = async function (req, res) {
     }
 }
 
-// Verificar atualização para username e emails já cadastrados
 const updateUser = async function (req, res) {
     if(req.body === undefined) {
         let error = new Error(400, 'A requisição não tem corpo');
@@ -256,15 +256,39 @@ const updateUser = async function (req, res) {
     }
 
     try {
-        let is_user_id_on_bd = await db.oneOrNone({
+        let user_data = await db.oneOrNone({
             text: 'SELECT * FROM users WHERE user_id = $1',
             values: [user_id]
         });
 
-        if(is_user_id_on_bd === null) {
+        if(user_data === null) {
             let error = new Error(404, 'O id do usuário informado não está na base de dados.');
             return res.status(404).send(error);
         };
+
+        if(user_data.username !== username) {
+            const test_username_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE user_id <> $1 AND username = $2',
+                values: [user_id, username]
+            });
+
+            if(test_username_used !== null) {
+                let username_already_used = new Error(400, 'O usuário colocado já está sendo usado por outra pessoa.');
+                return res.status(400).send(username_already_used);
+            }
+        }
+        if(user_data.email !== email) {
+            const test_email_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE user_id <> $1 AND email = $2',
+                values: [user_id, email]
+            });
+
+            if(test_email_used !== null) {
+                let email_already_used = new Error(400, 'O email colocado já está sendo usado por outra pessoa.');
+                return res.status(400).send(email_already_used);
+            }
+        }
+        
     } catch (e) {
         let error = new Error(400, 'Erro no processamento do usuário.');
         return res.status(400).send(error); 
@@ -347,20 +371,44 @@ const patchUser = async function (req, res) {
     const { username, password, email } = req.body;
 
     if(username == undefined && password == undefined && email == undefined) {
-        let error = new Error(400, 'Algum dos campos devem estar informados.');
+        let error = new Error(400, 'Algum dos campos deve estar informados.');
         return res.status(400).send(error);
     }
 
     try {
-        let verification_duplication_user = await db.oneOrNone({
+        let user_data = await db.oneOrNone({
             text: 'SELECT * FROM users WHERE user_id = $1',
             values: [user_id]
         });
 
-        if(verification_duplication_user === null) {
+        if(user_data === null) {
             let error = new Error(404, 'O id do usuário informado não está na base de dados.');
             return res.status(404).send(error);
+        };
+
+         if(username !== undefined && user_data.username !== username) {
+            const test_username_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE user_id <> $1 AND username = $2',
+                values: [user_id, username]
+            });
+
+            if(test_username_used !== null) {
+                let username_already_used = new Error(400, 'O usuário colocado já está sendo usado por outra pessoa.');
+                return res.status(400).send(username_already_used);
+            }
         }
+        if(email !== undefined && user_data.email !== email) {
+            const test_email_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE user_id <> $1 AND email = $2',
+                values: [user_id, email]
+            });
+
+            if(test_email_used !== null) {
+                let email_already_used = new Error(400, 'O email colocado já está sendo usado por outra pessoa.');
+                return res.status(400).send(email_already_used);
+            }
+        }
+
     } catch (e) {
         let error = new Error(400, 'Erro no processamento do usuário.');
         return res.status(400).send(error); 
@@ -398,8 +446,8 @@ const patchUser = async function (req, res) {
         query_update_values.push(email);
     }
 
-    if(username_conditions !== 0 || password_conditions !== 0 || email_conditions !== 0) {
-        let error = new Error(compilation_errors, 400);
+    if(username_conditions.length !== 0 || password_conditions.length !== 0 || email_conditions.length !== 0) {
+        let error = new Error(400, compilation_errors);
         return res.status(400).send(error);
     };
 
@@ -420,4 +468,4 @@ const patchUser = async function (req, res) {
     }
 }
 
-module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser }
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, username_verification, password_verification, email_verification }
