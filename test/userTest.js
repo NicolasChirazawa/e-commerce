@@ -1,6 +1,7 @@
 const { describe, test } = require('node:test');
-const userTest = require('../projeto/controllers/user.js');
 const assert = require('node:assert/strict');
+
+const userTest = require('../projeto/controllers/user.js');
 
 /* Verificação de condições do username */
 describe('Verification of username field', () => {
@@ -9,7 +10,7 @@ describe('Verification of username field', () => {
         assert.deepEqual(username_condition, ['O username deve ter ao menos 3 caracteres.']);
     })
 
-        test('Pass all the conditions', () => {
+    test('Pass all the conditions', () => {
         const username_condition = userTest.username_verification('abc');
         assert.deepEqual(username_condition, []);
     })
