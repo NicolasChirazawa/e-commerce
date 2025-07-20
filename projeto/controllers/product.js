@@ -51,7 +51,7 @@ const createProduct = async function (req, res) {
     const price_validation = is_valid_price(price);
     
     if(quantity_validation === false) {
-        compilation_errors['quantity'] = 'Insira uma quantidade válida.';
+        compilation_errors['quantity'] = 'Insira uma quantidade válida';
         list_error.push('quantidade');
     }
     if(price_validation === false) {
@@ -68,7 +68,7 @@ const createProduct = async function (req, res) {
         const dateTime = getDate();
 
         const product_created = await db.one({
-            text: 'INSERT INTO products (name, quantity, price, created_at) VALUES ($1, $2, $3, $4) RETURNING name, quantity, price',
+            text: 'INSERT INTO products (name, quantity, price, created_at) VALUES ($1, $2, $3, $4) RETURNING product_id, name, quantity, price',
             values: [name, quantity, price, dateTime]
         });
 
@@ -161,7 +161,7 @@ const updateProduct = async function (req, res) {
     const price_validation = is_valid_price(price);
     
     if(quantity_validation === false) {
-        compilation_errors['quantity'] = 'Insira uma quantidade válida.';
+        compilation_errors['quantity'] = 'Insira uma quantidade válida';
         list_error.push('quantidade');
     }
     if(price_validation === false) {
@@ -194,10 +194,15 @@ const deleteProduct = async function (req, res) {
     const product_id = req.params.product_id; 
 
     try {
-        const deleted_product = await db.none({
-            text: 'DELETE FROM products WHERE product_id = $1',
+        const deleted_product = await db.oneOrNone({
+            text: 'DELETE FROM products WHERE product_id = $1 RETURNING product_id',
             values: [product_id]
         });
+
+        if(deleted_product === null) {
+            const product_not_found = new Error(404, 'O id do produto informado não está na base de dados.') ;
+            return res.status(404).send(product_not_found)
+        }
 
         return res.status(204).send('');
     } catch (e) {
