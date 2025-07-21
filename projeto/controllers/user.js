@@ -211,7 +211,7 @@ const loginUser = async function (req, res) {
 
 const selectAllUsers = async function (req, res) {
     try {
-        const all_users = await db.many('SELECT * FROM users ORDER BY user_id');
+        const all_users = await db.any('SELECT * FROM users ORDER BY user_id');
         return res.status(200).send(all_users);
     } catch (e) {
         let error = new Error(400, 'Não foi possível selecionar os usuários.');
