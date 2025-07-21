@@ -25,7 +25,7 @@ describe('Looking for the endpoint "/products"', async () => {
                     quantity: 10
                 };
 
-                const request = await fetch(`http://localhost:3000/v1/product`, {
+                const request = await fetch(`http://localhost:3000/v1/products`, {
                     method: 'POST',
                     body: JSON.stringify(body),
                     headers: {
@@ -51,7 +51,7 @@ describe('Looking for the endpoint "/products"', async () => {
                     price: '20'
                 };
 
-                const request = await fetch(`http://localhost:3000/v1/product`, {
+                const request = await fetch(`http://localhost:3000/v1/products`, {
                     method: 'POST',
                     body: JSON.stringify(body),
                     headers: {
@@ -80,7 +80,7 @@ describe('Looking for the endpoint "/products"', async () => {
                     price: 20
                 };
 
-                const request = await fetch(`http://localhost:3000/v1/product`, {
+                const request = await fetch(`http://localhost:3000/v1/products`, {
                     method: 'POST',
                     body: JSON.stringify(body),
                     headers: {
@@ -107,7 +107,7 @@ describe('Looking for the endpoint "/products"', async () => {
     
     await test('GET', async (inside) => {
         
-        let product_id = await fetch(`http://localhost:3000/v1/product`, {
+        let product_id = await fetch(`http://localhost:3000/v1/products`, {
         headers: {
             Authorization: 'Bearer ' + token
         }}).then(async (result) => await result.json());
@@ -115,7 +115,7 @@ describe('Looking for the endpoint "/products"', async () => {
         product_id = product_id[product_id.length - 1].product_id;
 
         await inside.test('Product doesnt found', async () => {
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id + 100}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id + 100}`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token
@@ -132,7 +132,7 @@ describe('Looking for the endpoint "/products"', async () => {
         });
 
         await inside.test('Product found', async () => {
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id}`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token
@@ -155,7 +155,7 @@ describe('Looking for the endpoint "/products"', async () => {
 
     await test('PUT', async (inside) => {
         
-        let product_id = await fetch(`http://localhost:3000/v1/product`, {
+        let product_id = await fetch(`http://localhost:3000/v1/products`, {
         headers: {
             Authorization: 'Bearer ' + token
         }}).then(async (result) => await result.json());
@@ -166,9 +166,9 @@ describe('Looking for the endpoint "/products"', async () => {
             const body = JSON.stringify({
                 name: 'Nome_teste',
                 price: 30
-            })
+            });
 
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id + 100}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id + 100}`, {
                 body: body,
                 method: 'PUT',
                 headers: {
@@ -193,7 +193,7 @@ describe('Looking for the endpoint "/products"', async () => {
                 price: 30
             })
 
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id + 100}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id + 100}`, {
                 body: body,
                 method: 'PUT',
                 headers: {
@@ -218,7 +218,7 @@ describe('Looking for the endpoint "/products"', async () => {
                 price: '30'
             })
 
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id}`, {
                 body: body,
                 method: 'PUT',
                 headers: {
@@ -246,7 +246,7 @@ describe('Looking for the endpoint "/products"', async () => {
                 price: 30
             })
 
-            let request = await fetch(`http://localhost:3000/v1/product/${product_id}`, {
+            let request = await fetch(`http://localhost:3000/v1/products/${product_id}`, {
                 body: body,
                 method: 'PUT',
                 headers: {
@@ -265,7 +265,7 @@ describe('Looking for the endpoint "/products"', async () => {
     await test('/DELETE', async (inside) => {
 
         await inside.test('Product doesnt found', async () => {
-            const request = await fetch(`http://localhost:3000/v1/product/${product_id + 100}`, {
+            const request = await fetch(`http://localhost:3000/v1/products/${product_id + 100}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ describe('Looking for the endpoint "/products"', async () => {
         });
 
         await inside.test('Delete the product', async () => {
-            const request = await fetch(`http://localhost:3000/v1/product/${product_id}`, {
+            const request = await fetch(`http://localhost:3000/v1/products/${product_id}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
