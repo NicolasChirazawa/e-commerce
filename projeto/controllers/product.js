@@ -83,7 +83,7 @@ const createProduct = async function (req, res) {
 
 const selectAllProducts = async function (req, res) {
     try {
-        const all_products = await db.many('SELECT * FROM products ORDER BY product_id');
+        const all_products = await db.any('SELECT * FROM products ORDER BY product_id');
         return res.status(200).send(all_products);
     } catch (e) {
         let error = new Error(400, 'Não foi possível selecionar os produtos.');
@@ -269,21 +269,25 @@ const patchProduct = async function (req, res) {
         query_update_values.push(price);
     }
 
+    let dateTime = getDate();
+    query_update_text.push(`last_update = $${query_update_text.length + 1}`);
+    query_update_values.push(dateTime);
+
     if(quantity_valid === false || price_valid === false) {
         let error = new Error(400, compilation_errors);
         return res.status(400).send(error);
     };
 
     try {
-        let quantidade_campos = query_update_text.length;
+        let fields_length = query_update_text.length;
         query_update_text = query_update_text.join(',');
 
         const patchedProductChoosed = await db.none({
-            text: `UPDATE products SET ${query_update_text} WHERE product_id = $${quantidade_campos + 1}` ,
+            text: `UPDATE products SET ${query_update_text} WHERE product_id = $${fields_length + 1}` ,
             values: [...query_update_values, product_id]
         });
 
-        return res.status(204).send(patchedProductChoosed);
+        return res.status(204).send('');
     } catch(e) {
         console.log(e);
         let error = new Error(400, 'Erro ao atualizar o produto.');
