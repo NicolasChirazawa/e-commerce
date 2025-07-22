@@ -1,6 +1,5 @@
-const { describe, test, after, before } = require('node:test');
+const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
-const { json } = require('node:stream/consumers');
 
 /* Verificação do endpoint POST do produto */
 describe('Looking for the endpoint "/products"', async () => {

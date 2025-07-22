@@ -1,7 +1,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const userTest = require('../projeto/controllers/user.js');
+const userTest = require('../app/controllers/user.js');
 
 /* Verificação de condições do username */
 describe('Verification of username field', () => {

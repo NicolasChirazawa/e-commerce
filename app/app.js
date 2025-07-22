@@ -6,12 +6,12 @@ async function main() {
 
     app.use(express.json())
 
-    const db = require('./projeto/bd_connection.js');
-    const { testarConexaoBanco } = require('./test/verificacaoBanco.js');
+    const db = require('./bd_connection.js');
+    const { testarConexaoBanco } = require('../test/verificacaoBanco.js');
     if(await testarConexaoBanco(db) === false) { return }
     
-    const users = require('./projeto/Router/user.js');
-    const products = require('./projeto/Router/product.js');
+    const users = require('./Router/user.js');
+    const products = require('./Router/product.js');
     app.use('/v1/', users);
     app.use('/v1/', products);
 
