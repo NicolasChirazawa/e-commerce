@@ -7,7 +7,7 @@ async function main() {
     app.use(express.json())
 
     const db = require('./bd_connection.js');
-    const { testarConexaoBanco } = require('../test/verificacaoBanco.js');
+    const { testarConexaoBanco } = require('../test/bd_verification.js');
     if(await testarConexaoBanco(db) === false) { return }
     
     const users = require('./Router/user.js');
