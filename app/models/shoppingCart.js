@@ -1,8 +1,7 @@
 class shoppingCart {
-    constructor(userId, productId, productQuantity, productPrice) {
+    constructor(userId) {
         this.userId = userId;
-        this.productId = productId;
-        this.productQuantity = productQuantity;
-        this.productPrice = productPrice;
     }
 }
+
+module.exports = shoppingCart;

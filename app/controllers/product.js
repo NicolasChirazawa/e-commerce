@@ -1,20 +1,7 @@
 const Error = require('../models/error.js');
 const db = require('../bd_connection.js');
-const getDate = require('../useful_functions.js').generate_date_dmy;
 
-function is_valid_quantity (quantity) {
-    if((typeof quantity) !== "number") {
-        return false;
-    }
-    return (quantity >= 0)
-};
-
-function is_valid_price (price) {
-    if((typeof price) !== "number") {
-        return false;
-    }
-    return (price >= 0)
-};
+const { generate_date_dmy: getDate, is_valid_price, is_valid_quantity } = require('../useful_functions.js');
 
 const createProduct = async function (req, res) {
     if(req.body === undefined) {

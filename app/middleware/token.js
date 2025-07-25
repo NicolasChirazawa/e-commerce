@@ -8,7 +8,7 @@ function verify_jwt (req, res, next) {
     const token = req.headers.authorization.split(' ')[1];
 
     try{
-        jwt.verify(token, process.env.JWT_SECRET);
+        res.user_data = jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch (e) {
         const error = new Error(401, 'O token usado é inválido.');

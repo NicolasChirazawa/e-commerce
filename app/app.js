@@ -12,8 +12,10 @@ async function main() {
     
     const users = require('./Router/user.js');
     const products = require('./Router/product.js');
+    const shooping_cart = require('./Router/shoppingCart.js');
     app.use('/v1/', users);
     app.use('/v1/', products);
+    app.use('/v1/', shooping_cart);
 
     app.listen(port, () => {
         console.log(`Server conectado na porta ${port}`);
