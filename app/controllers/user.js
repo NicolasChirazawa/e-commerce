@@ -1,110 +1,68 @@
+const User = require('../models/user.js');
 const Error = require('../models/error.js');
+const Datetime = require('../models/datetime.js');
+
 const db = require('../bd_connection.js');
-const getDate = require('../useful_functions.js').generate_date_dmy;
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-function username_verification (username) {
-    let username_conditions = [];
-
-    if(username.length < 3) {
-        username_conditions.push('O username deve ter ao menos 3 caracteres.');
-    }
-
-    return username_conditions
-}
-
-function password_verification (password) {
-    let password_conditions = [];
-
-    if(password.length < 5) {
-        password_conditions.push('A senha deve ter ao menos 5 caracteres.');
-    }
-    if(password.length > 30) {
-        password_conditions.push('A senha deve possuir no máximo 30 caracteres.');
-    }
-    if(password.search(/[A-Z]/) == -1) {
-        password_conditions.push('A senha deve ter ao menos um caractere maiúsculo.');
-    }
-    if(password.search(/[a-z]/) == -1) {
-        password_conditions.push('A senha deve ter ao menos um caractere minúsculo.');
-    }
-    if(password.search(/[0-9]/) == -1) {
-        password_conditions.push('A senha deve ter ao menos um número.');
-    }
-    if(password.search(/[!@#$%¨&*]/) == -1) {
-        password_conditions.push('A senha deve ter ao menos um caractere especial.');
-    }
-
-    return password_conditions;
-}
-
-function email_verification (email) {
-    let email_conditions = [];
-
-    if(email.search(/^([a-z0-9]+@[a-z]+(\.[a-z]{1,3}){1,2})$/i) != 0) {
-        email_conditions.push('Insira um e-mail válido.')
-    }
-
-    return email_conditions;
-}
-
 const registerUser = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
+    const { username, password, email } = req?.body;
+    const user = new User(username, password, email);
 
-    const { username, password, email } = req.body;
-
-    if(username == undefined || password == undefined || email == undefined) {
-        let error = new Error(400, 'Nenhum dos campos deve estar vazio.');
-        return res.status(400).send(error);
-    }
+    if (
+        user.is_username_empty() || 
+        user.is_password_empty() || 
+        user.is_email_empty()
+    ) {
+        return res.status(400).send(new Error().getMessage('001'));
+    };
 
     try {
-        let verification_duplication_user = await db.oneOrNone({
+        let is_user_already_created = await db.oneOrNone({
             text: 'SELECT * FROM users WHERE username = $1 OR email = $2',
-            values: [username, email]
+            values: [user.username, user.email]
         });
 
-        if(verification_duplication_user !== null) {
-            let error = new Error(400, 'Já existe um usuário com esse username e/ou email registrado.');
-            return res.status(400).send(error);
+        if(is_user_already_created !== null) {
+            return res.status(400).send(new Error().getMessage('002'));
         }
     } catch (e) {
-        let error = new Error(400, 'Erro no processamento de duplicação de usuário.');
-        return res.status(400).send(error); 
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('100')); 
     }
 
-    let username_conditions = username_verification(username);
-    let password_conditions = password_verification(password);
-    let email_conditions = email_verification(email);
+    let username_conditions = user.username_verification();
+    let password_conditions = user.password_verification();
+    let email_conditions    = user.email_verification();
 
-    if(username_conditions.length > 0 || password_conditions.length > 0 || email_conditions.length > 0) {
+    if(
+        username_conditions.length > 0 || 
+        password_conditions.length > 0 || 
+        email_conditions.length > 0
+    ) {
         let compilation_errors = {
-            username: username_conditions,
-            password: password_conditions,
-            email: email_conditions
+            username: username_conditions.description,
+            password: password_conditions.description,
+            email: email_conditions.description
         }
 
-        let error = new Error(compilation_errors, 400);
-        return res.status(400).send(error);
+        return res.status(400).send(compilation_errors);
     }
 
     try {
-        let dateTime = getDate();
-
         const saltrounds = 10;
-        const hashed_password = await bcrypt.hash(password, saltrounds);
+        const hashed_password = await bcrypt.hash(user.password, saltrounds);
 
         let insert_user = '';
+        const dateTime = new Datetime().getTimestamp();
+
         await db.tx(async (t) => {
             
             insert_user = await t.one({
                 text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING user_id, username, password, email, created_at',
-                values: [username, hashed_password, email, dateTime]
+                values: [user.username, hashed_password, user.email, dateTime]
             });
 
             const shooping_cart_status = 'Em aberto';
@@ -117,105 +75,64 @@ const registerUser = async function (req, res) {
         })
 
         return res.status(201).send(insert_user);
-    } catch(e) {
+    } catch (e) {
         console.log(e);
-
-        let error = new Error(400, 'Erro ao criar um novo usuário e carrinho de compras.');
-        return res.status(400).send(error)
+        return res.status(500).send(new Error().getMessage('101'))
     }
 }
 
 const loginUser = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
+    const { username, password, email } = req?.body;
+    const user = new User(username, password, email);
 
-    const { username, password, email } = req.body;
+    if (user.is_username_empty() && user.is_password_empty()) { return res.status(400).send(new Error().getMessage('003')) }
+    if (user.is_password_empty()) { return res.status(400).send(new Error().getMessage('004')) }
 
-    if(username === undefined && email === undefined) {
-        let error = new Error(400, 'Insira o username ou o email.');
-        return res.status(400).send(error);
-    }
-    if(password === undefined) {
-        let error = new Error(400, 'Insira a senha.');
-        return res.status(400).send(error);
-    }
-
-    const loginMethodChoosed = (username !== null ? 'username' : 'email');
+    const loginMethodChoosed = (!(user.is_username_empty()) ? 
+    {method: 'username', value: user.username} : 
+    {method: 'email',    value: user.email});
 
     try {
         let user_search = '';
-        let dateTime = getDate();
+        const dateTime = new Datetime().getTimestamp();
         let password_crypto_verification = '';
 
-        switch(loginMethodChoosed) {
-            case 'username':
-                user_search = await db.oneOrNone({
-                    text: 'SELECT user_id, password FROM users WHERE username = $1',
-                    values: [username]
-                });
+        user_data = await db.oneOrNone({
+            text: `SELECT user_id, password FROM users WHERE ${loginMethodChoosed.method} = $1`,
+            values: [loginMethodChoosed.value]
+        });
 
-                password_crypto_verification = await bcrypt.compare(password, user_search.password);
+        password_crypto_verification = await bcrypt.compare(password, user_data.password);
 
-                if(password_crypto_verification === false) {
-                    const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
-                    return res.status(400).send(loginFailed);
-                }
-
-                await db.none({
-                    text: 'UPDATE users SET last_login = $1 WHERE username = $2',
-                    values: [dateTime, username]
-                });
-
-                break;
-
-            case 'email':
-                user_search = await db.oneOrNone({
-                    text: 'SELECT user_id, password FROM users WHERE email = $1',
-                    values: [email]
-                });  
-                
-                password_crypto_verification = await bcrypt.compare(password, user_search.password);
-
-                if(password_crypto_verification === false) {
-                    const loginFailed = new Error(400, 'Usuário e/ou senha errado(s).');
-                    return res.status(400).send(loginFailed);
-                }
-
-                await db.none({
-                    text: 'UPDATE users SET last_login = $1 WHERE email = $2',
-                    values: [dateTime, email]
-                });
-            break;
-
-            default:
-                const user_not_found = new Error(404, 'Usuário não encontrado.');
-                return res.status(404).send(user_not_found);
+        if(password_crypto_verification === false) {
+            return res.status(400).send(new Error().getMessage('005'));
         }
 
-        const token_user = jwt.sign(
+        await db.none({
+            text: `UPDATE users SET last_login = $1 WHERE user_id = $2`,
+            values: [dateTime, user_data.user_id]
+        });
+
+        const token_user = jwt.sign (
             {user_id: user_search.user_id}, 
             process.env.JWT_SECRET,
             {expiresIn: '1h'}
-        )
+        );
 
-        return res.status(200).send({token: token_user});
+        return res.status(200).send({ token: token_user });
     } catch(e) {
         console.log(e);
-
-        let error = new Error(400, 'Erro no processamento do login.');
-        return res.status(400).send(error);
+        return res.status(500).send(new Error().getMessage('102'));
     }
 }
 
-const selectAllUsers = async function (req, res) {
+const selectAllUsers = async function (_, res) {
     try {
         const all_users = await db.any('SELECT * FROM users ORDER BY user_id');
         return res.status(200).send(all_users);
     } catch (e) {
-        let error = new Error(400, 'Não foi possível selecionar os usuários.');
-        return res.status(400).send(error);
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('103'));
     }
 }
 
@@ -230,29 +147,27 @@ const selectUser = async function (req, res) {
         });
 
         if(choosedUser === null) {
-            let error = new Error(404, 'Não foi encontrado um usuário com o id informado.')
-            return res.status(404).send(error);
-        }
+            return res.status(404).send(new Error().getMessage('006'));
+        };
 
         return res.status(200).send(choosedUser);
     } catch (e) {
-        let error = new Error(400, 'Não foi possível selecionar o usuário.');
-        return res.status(400).send(error);
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('104'));
     }
 }
 
 const updateUser = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
-
     const user_id = req.params.user_id;
-    const { username, password, email } = req.body;
+    const { username, password, email } = req?.body;
+    const user = new User(username, password, email);
 
-    if(username == undefined || password == undefined || email == undefined) {
-        let error = new Error(400, 'Nenhum dos campos deve estar vazio.');
-        return res.status(400).send(error);
+    if (
+        user.is_username_empty() || 
+        user.is_password_empty() || 
+        user.is_email_empty()
+    ) {
+        return res.status(400).send(new Error().getMessage('001'));
     }
 
     try {
@@ -261,76 +176,71 @@ const updateUser = async function (req, res) {
             values: [user_id]
         });
 
-        if(user_data === null) {
-            let error = new Error(404, 'O id do usuário informado não está na base de dados.');
-            return res.status(404).send(error);
+        if (user_data === null) {
+            return res.status(404).send(new Error().getMessage('006'));
         };
 
-        if(user_data.username !== username) {
+        if (user_data.username !== user.username) {
             const test_username_used = await db.oneOrNone({
                 text: 'SELECT * FROM users WHERE user_id <> $1 AND username = $2',
-                values: [user_id, username]
+                values: [user_id, user.username]
             });
 
-            if(test_username_used !== null) {
-                let username_already_used = new Error(400, 'O usuário colocado já está sendo usado por outra pessoa.');
-                return res.status(400).send(username_already_used);
-            }
+            if (test_username_used !== null) { return res.status(400).send(new Error().getMessage('007')) }
         }
-        if(user_data.email !== email) {
+
+        if (user_data.email !== user.email) {
             const test_email_used = await db.oneOrNone({
                 text: 'SELECT * FROM users WHERE user_id <> $1 AND email = $2',
-                values: [user_id, email]
+                values: [user_id, user.email]
             });
 
-            if(test_email_used !== null) {
-                let email_already_used = new Error(400, 'O email colocado já está sendo usado por outra pessoa.');
-                return res.status(400).send(email_already_used);
-            }
+            if (test_email_used !== null) { return res.status(400).send(new Error().getMessage('008')) }
         }
         
     } catch (e) {
-        let error = new Error(400, 'Erro no processamento do usuário.');
-        return res.status(400).send(error); 
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('100')); 
     }
 
-    let username_conditions = username_verification(username);
-    let password_conditions = password_verification(password);
-    let email_conditions = email_verification(email);
+    const username_conditions = user.username_verification();
+    const password_conditions = user.password_verification();
+    const email_conditions    = user.email_verification();
 
-    if(username_conditions.length > 0 || password_conditions.length > 0 || email_conditions.length > 0) {
+    if(
+        username_conditions.length > 0 || 
+        password_conditions.length > 0 || 
+        email_conditions.length    > 0
+    ) {
         let compilation_errors = {
-            username: username_conditions,
-            password: password_conditions,
-            email: email_conditions
+            username: username_conditions.description(),
+            password: password_conditions.description(),
+            email:    email_conditions.description()
         }
-
-        let error = new Error(compilation_errors, 400);
-        return res.status(400).send(error);
+        return res.status(400).send(compilation_errors);
     }
 
     try {
         const saltrounds = 10;
-        const hashed_password = await bcrypt.hash(password, saltrounds);
+        const hashed_password = await bcrypt.hash(user.password, saltrounds);
 
         await db.tx(async (t) => {
-            const userChoosed = await t.one({
+            const user_data = await t.one({
                 text: "SELECT created_at, last_login FROM users WHERE user_id = $1",
                 values: [user_id]
             });
 
-            const updateUserChoosed = await t.none({
+            const updateUser = await t.none({
                 text: 'UPDATE users SET username = $1, password = $2, email = $3, created_at = $4, last_login = $5 WHERE user_id = $6' ,
-                values: [username, hashed_password, email, userChoosed.created_at, userChoosed.last_login, user_id]
+                values: [user.username, hashed_password, user.email, user_data.created_at, user_data.last_login, user_id]
             });
 
-            return t.batch([userChoosed, updateUserChoosed])
+            return t.batch([user_data, updateUser])
         });
-        return res.status(204).send('');
+        return res.status(204).send();
     } catch(e) {
         console.log(e);
-        let error = new Error(400, 'Erro ao atualizar o usuário.');
-        return res.status(400).send(error)
+        return res.status(500).send(new Error().getMessage('105'))
     }
 }
 
@@ -351,28 +261,21 @@ const deleteUser = async function (req, res) {
                 values: [user_id]
             });
 
-            return t.batch([deleted_shopping_carts, deleted_user])
+            return t.batch([deleted_shopping_carts, deleted_user]);
         });
-        return res.status(204).send('');
+        return res.status(204).send();
     } catch (e) {
-        let error = new Error(400, 'Não foi possível deletar o usuário.');
-        return res.status(400).send(error);
+        return res.status(400).send(new Error().getMessage('106'));
     }
 }
 
-// Verificar atualização para username e emails já cadastrados
 const patchUser = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
-
     const user_id = req.params.user_id;
-    const { username, password, email } = req.body;
+    const { username, password, email } = req?.body;
+    const user = new User(username, password, email);
 
-    if(username == undefined && password == undefined && email == undefined) {
-        let error = new Error(400, 'Algum dos campos deve estar informados.');
-        return res.status(400).send(error);
+    if(user.is_username_empty() && user.is_password_empty() && user.is_email_empty()) {
+        return res.status(400).send(new Error().getMessage('009'));
     }
 
     try {
@@ -382,36 +285,29 @@ const patchUser = async function (req, res) {
         });
 
         if(user_data === null) {
-            let error = new Error(404, 'O id do usuário informado não está na base de dados.');
-            return res.status(404).send(error);
+            return res.status(404).send(new Error().getMessage('006'));
         };
 
-         if(username !== undefined && user_data.username !== username) {
+         if(user.username !== undefined && user_data.username !== user.username) {
             const test_username_used = await db.oneOrNone({
                 text: 'SELECT * FROM users WHERE user_id <> $1 AND username = $2',
-                values: [user_id, username]
+                values: [user_id, user.username]
             });
 
-            if(test_username_used !== null) {
-                let username_already_used = new Error(400, 'O usuário colocado já está sendo usado por outra pessoa.');
-                return res.status(400).send(username_already_used);
-            }
+            if(test_username_used !== null) { return res.status(400).send(new Error().getMessage('007')) };
         }
-        if(email !== undefined && user_data.email !== email) {
+        if(user.email !== undefined && user_data.email !== user.email) {
             const test_email_used = await db.oneOrNone({
                 text: 'SELECT * FROM users WHERE user_id <> $1 AND email = $2',
-                values: [user_id, email]
+                values: [user_id, user.email]
             });
 
-            if(test_email_used !== null) {
-                let email_already_used = new Error(400, 'O email colocado já está sendo usado por outra pessoa.');
-                return res.status(400).send(email_already_used);
-            }
+            if(test_email_used !== null) { return res.status(400).send(new Error().getMessage('008')) }
         }
 
     } catch (e) {
-        let error = new Error(400, 'Erro no processamento do usuário.');
-        return res.status(400).send(error); 
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('100')); 
     }
 
     let username_conditions = [];
@@ -421,51 +317,53 @@ const patchUser = async function (req, res) {
     let query_update_text = [];
     let query_update_values = [];
 
-    if(username !== undefined) { 
-        username_conditions = username_verification(username); 
-        compilation_errors['username'] = username_conditions;
+    if(user.username !== undefined) { 
+        username_conditions = user.username_verification(); 
+        compilation_errors['username'] = username_conditions.description;
 
         query_update_text.push(`username = $${query_update_text.length + 1}`);
-        query_update_values.push(username);
+        query_update_values.push(user.username);
     }
-    if(password !== undefined) { 
-        password_conditions = password_verification(password); 
-        compilation_errors['password'] = password_conditions;
+    if(user.password !== undefined) { 
+        password_conditions = user.password_verification(); 
+        compilation_errors['password'] = password_conditions.description;
 
         const saltrounds = 10;
-        const hashed_password = await bcrypt.hash(password, saltrounds);
+        const hashed_password = await bcrypt.hash(user.password, saltrounds);
 
         query_update_text.push(`password = $${query_update_text.length + 1}`);
         query_update_values.push(hashed_password);
     }
-    if(email !== undefined) { 
-        email_conditions = email_verification(email); 
+    if(user.email !== undefined) { 
+        email_conditions = user.email_verification(); 
         compilation_errors['email'] = email_conditions;
 
         query_update_text.push(`email = $${query_update_text.length + 1}`);
-        query_update_values.push(email);
+        query_update_values.push(user.email);
     }
 
-    if(username_conditions.length !== 0 || password_conditions.length !== 0 || email_conditions.length !== 0) {
-        let error = new Error(400, compilation_errors);
-        return res.status(400).send(error);
+    if(
+        username_conditions.length !== 0 || 
+        password_conditions.length !== 0 || 
+        email_conditions.length    !== 0
+    ) {
+        return res.status(400).send(compilation_errors);
     };
 
     try {
-        let quantidade_campos = query_update_text.length;
+        let quantity_fields = query_update_text.length;
         query_update_text = query_update_text.join(',');
 
         const patchedUserChoosed = await db.none({
-            text: `UPDATE users SET ${query_update_text} WHERE user_id = $${quantidade_campos + 1}` ,
+            text: `UPDATE users SET ${query_update_text} WHERE user_id = $${quantity_fields + 1}` ,
             values: [...query_update_values, user_id]
         });
 
         return res.status(204).send(patchedUserChoosed);
     } catch(e) {
         console.log(e);
-        let error = new Error(400, 'Erro ao atualizar o usuário.');
-        return res.status(400).send(error)
+        return res.status(500).send(new Error().getMessage('105'))
     }
 }
 
-module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser, username_verification, password_verification, email_verification }
+module.exports = { registerUser, loginUser, selectAllUsers, selectUser, updateUser, patchUser, deleteUser }
