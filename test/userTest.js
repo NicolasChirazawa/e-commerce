@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcrypt');
 const User_model = require('../app/models/user.js');
 
-describe('Unitary tests "/users"', () => {
+describe('Unitary tests', () => {
     describe('Verification of username field', () => {
         test('Returns length condition', () => {
             const user = new User_model('ab');
