@@ -14,6 +14,8 @@ class Error {
             '010': 'Já existe um produto com esse nome',
             '011': 'Não foi possível encontrar um produto com o id informado',
             '012': 'Pelo menos um dos campos deve estar informado',
+            '013': 'É necessário se logar para usar esse endpoint',
+            '014': 'O token usado é inválido',
             '100': 'Erro no processamento do usuário',
             '101': 'Erro na criação usuário com o carrinho de compras',
             '102': 'Erro no processamento do login',

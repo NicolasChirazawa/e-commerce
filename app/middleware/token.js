@@ -3,7 +3,7 @@ const Error = require('../models/error.js');
 
 function verify_jwt (req, res, next) {
     if(req.headers.authorization === undefined) {
-        return res.status(401).send('É necessário se logar para usar esse endpoint.')
+        return res.status(401).send(new Error().getMessage('013'));
     }
     const token = req.headers.authorization.split(' ')[1];
 
@@ -11,9 +11,8 @@ function verify_jwt (req, res, next) {
         res.user_data = jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch (e) {
-        const error = new Error(401, 'O token usado é inválido.');
-
-        return res.status(401).send(error);
+        console.log(e)
+        return res.status(401).send(new Error().getMessage('014'));
     }
 }
 
