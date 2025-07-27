@@ -11,13 +11,21 @@ class Error {
             '007': 'Já existe um usuário com esse nome',
             '008': 'Já existe um usuário com esse e-mail',
             '009': 'Algum dos campos deve estar informado',
+            '010': 'Já existe um produto com esse nome',
+            '011': 'Não foi possível encontrar um produto com o id informado',
+            '012': 'Pelo menos um dos campos deve estar informado',
             '100': 'Erro no processamento do usuário',
             '101': 'Erro na criação usuário com o carrinho de compras',
             '102': 'Erro no processamento do login',
             '103': 'Erro no processamento dos usuários',
             '104': 'Erro no processamento do usuário',
             '105': 'Erro ao atualizar o usuário',
-            '106': 'Erro ao deletar o usuário'
+            '106': 'Erro ao deletar o usuário',
+            '107': 'Erro no processamento do item',
+            '108': 'Erro ao criar o item',
+            '109': 'Erro ao selecionar o item',
+            '110': 'Erro ao atualizar o item',
+            '111': 'Erro ao deletar o item'
         };
     }
 

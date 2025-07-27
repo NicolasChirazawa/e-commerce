@@ -1,41 +1,37 @@
+const Product = require('../models/product.js');
 const Error = require('../models/error.js');
+const Datetime = require('../models/datetime.js');
+
 const db = require('../bd_connection.js');
 
-const { generate_date_dmy: getDate, is_valid_price, is_valid_quantity } = require('../useful_functions.js');
-
 const createProduct = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo.');
-        return res.status(400).send(error);
-    }
+    const { name, quantity, price } = req?.body;
+    const product = new Product(name, quantity, price);
 
-    const { name, quantity, price } = req.body;
-
-    if(name === undefined || quantity === undefined || price === undefined) {
-        let error = new Error(400, 'Preencha todos os campos obrigatórios.');
-
-        return res.status(400).send(error);
+    if(
+        product.is_name_empty()     || 
+        product.is_quantity_empty() || 
+        product.is_price_empty()
+    ) {
+        return res.status(400).send(new Error().getMessage('001'));
     }
 
     try{
-        let verification_duplication_product = await db.oneOrNone({
+        let is_product_name_already_used = await db.oneOrNone({
             text: 'SELECT * FROM products WHERE name = $1',
             values: [name]
         });
 
-        if(verification_duplication_product !== null) {
-            let duplication_product = new Error(400, 'Já existe um produto com esse mesmo nome.')
-            return res.status(400).send(duplication_product)
-        }
+        if(is_product_name_already_used !== null) { return res.status(400).send(new Error().getMessage('010')) }
     } catch (e) {
-        let error = new Error(400, 'Não foi possível verificar a duplicação do produto.')
-        return res.status(400).send(error);
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('107'));
     }
 
     let list_error = [];
     let compilation_errors = {};
-    const quantity_validation = is_valid_quantity(quantity); 
-    const price_validation = is_valid_price(price);
+    const quantity_validation = product.is_valid_quantity(); 
+    const price_validation = product.is_valid_price();
     
     if(quantity_validation === false) {
         compilation_errors['quantity'] = 'Insira uma quantidade válida';
@@ -46,25 +42,20 @@ const createProduct = async function (req, res) {
         list_error.push('preco')
     }
 
-    if(list_error.length > 0) {
-        let error = new Error(400, compilation_errors);
-        return res.status(400).send(error);
-    }
+    if(list_error.length > 0) { return res.status(400).send(compilation_errors) }
 
     try {
-        const dateTime = getDate();
+        const dateTime = new Datetime().getTimestamp();
 
-        const product_created = await db.one({
+        const product_created = await db.one ({
             text: 'INSERT INTO products (name, quantity, price, created_at) VALUES ($1, $2, $3, $4) RETURNING product_id, name, quantity, price',
-            values: [name, quantity, price, dateTime]
+            values: [product.name, product.quantity, product.price, dateTime]
         });
 
         return res.status(201).send(product_created);
     } catch (e) {
         console.log(e);
-
-        let error = new Error(400, 'Não foi possível criar o produto.');
-        return res.status(400).send(error);
+        return res.status(500).send(new Error().getMessage('108'));
     }
 }
 
@@ -73,8 +64,8 @@ const selectAllProducts = async function (req, res) {
         const all_products = await db.any('SELECT * FROM products ORDER BY product_id');
         return res.status(200).send(all_products);
     } catch (e) {
-        let error = new Error(400, 'Não foi possível selecionar os produtos.');
-        return res.status(400).send(error);
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('109'));
     }
 }
 
@@ -82,70 +73,61 @@ const selectProduct = async function (req, res) {
     const product_id = req.params.product_id; 
 
     try {
-        const choosedProduct = await db.oneOrNone({
+        const choosedProduct = await db.oneOrNone ({
             text: 'SELECT * FROM products WHERE product_id = $1',
             values: [product_id]
         });
 
         if(choosedProduct === null) {
-            let error = new Error(404, 'Não foi encontrado um produto com o id informado.')
-            return res.status(404).send(error);
+            return res.status(404).send(new Error().getMessage('011'));
         }
 
         return res.status(200).send(choosedProduct);
     } catch (e) {
-        let error = new Error(400, 'Não foi possível selecionar o produto.');
-        return res.status(400).send(error);
+        return res.status(500).send(new Error().getMessage('109'));
     }
 }
 
 const updateProduct = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
-
     const product_id = req.params.product_id;
-    const { name, quantity, price } = req.body;
+    const { name, quantity, price } = req?.body;
+    const product = new Product(name, quantity, price);
 
-    if(name == undefined || quantity == undefined || price == undefined) {
-        let error = new Error(400, 'Nenhum dos campos deve estar vazio.');
-        return res.status(400).send(error);
+    if(
+        product.is_name_empty()     || 
+        product.is_quantity_empty() || 
+        product.is_price_empty()
+    ) {
+        return res.status(400).send(new Error().getMessage('001'));
     }
 
     try {
-        let product_data = await db.oneOrNone({
+        const product_data = await db.oneOrNone({
             text: 'SELECT * FROM products WHERE product_id = $1',
             values: [product_id]
         });
 
-        if(product_data === null) {
-            let error = new Error(404, 'O id do produto informado não está na base de dados.');
-            return res.status(404).send(error);
-        };
+        if(product_data === null) { return res.status(404).send(new Error().getMessage('011')) }
 
-        if(product_data.name !== name) {
-            let test_name_used = await db.oneOrNone({
+        if(product_data.name !== product.name) {
+            const test_name_used = await db.oneOrNone({
                 text: 'SELECT * FROM products WHERE name = $1 AND product_id <> $2',
-                values: [name, product_id]
+                values: [product.name, product_id]
             });
 
             if(test_name_used !== null) {
-                let is_name_already_used = new Error(400, 'O nome deste produto já está sendo usado a outro.');
-                return res.status(400).send(is_name_already_used);
+                return res.status(400).send(new Error().getMessage('010'));
             }
         }
     } catch (e) {
         console.log(e);
-
-        let error = new Error(400, 'Erro no processamento do produto.');
-        return res.status(400).send(error); 
+        return res.status(500).send(new Error().getMessage('107')); 
     }
 
     let list_error = [];
     let compilation_errors = {};
-    const quantity_validation = is_valid_quantity(quantity); 
-    const price_validation = is_valid_price(price);
+    const quantity_validation = product.is_valid_quantity(); 
+    const price_validation = product.is_valid_price();
     
     if(quantity_validation === false) {
         compilation_errors['quantity'] = 'Insira uma quantidade válida';
@@ -156,23 +138,19 @@ const updateProduct = async function (req, res) {
         list_error.push('preco');
     }
 
-    if(list_error.length > 0) {
-        let error = new Error(400, compilation_errors);
-        return res.status(400).send(error);
-    }
+    if(list_error.length > 0) { return res.status(400).send(compilation_errors) }
 
     try {
-        const dateTime = getDate();
-        const updateProductChoosed = await db.none({
+        const dateTime = new Datetime().getTimestamp();
+        await db.none({
             text: 'UPDATE products SET name = $1, quantity = $2, price = $3, last_update = $4 WHERE product_id = $5' ,
-            values: [name, quantity, price, dateTime, product_id]
+            values: [product.name, product.quantity, product.price, dateTime, product_id]
         });
 
-        return res.status(204).send('');
+        return res.status(204).send();
     } catch(e) {
         console.log(e);
-        let error = new Error(400, 'Erro ao atualizar o produto.');
-        return res.status(400).send(error)
+        return res.status(500).send(new Error().getMessage('110'));
     }
 }
 
@@ -181,37 +159,31 @@ const deleteProduct = async function (req, res) {
     const product_id = req.params.product_id; 
 
     try {
-        const deleted_product = await db.oneOrNone({
+        const deleted_product = await db.oneOrNone ({
             text: 'DELETE FROM products WHERE product_id = $1 RETURNING product_id',
             values: [product_id]
         });
 
-        if(deleted_product === null) {
-            const product_not_found = new Error(404, 'O id do produto informado não está na base de dados.') ;
-            return res.status(404).send(product_not_found)
-        }
+        if(deleted_product === null) { return res.status(404).send(new Error().getMessage('011')) }
 
-        return res.status(204).send('');
+        return res.status(204).send();
     } catch (e) {
         console.log(e);
-
-        let error = new Error(400, 'Não foi possível deletar o produto.');
-        return res.status(400).send(error);
+        return res.status(500).send(new Error().getMessage('111'));
     }
 }
 
 const patchProduct = async function (req, res) {
-    if(req.body === undefined) {
-        let error = new Error(400, 'A requisição não tem corpo');
-        return res.status(400).send(error);
-    }
-
     const product_id = req.params.product_id;
-    const { name, quantity, price } = req.body;
+    const { name, quantity, price } = req?.body;
+    const product = new Product(name, quantity, price);
 
-    if(name == undefined && quantity == undefined && price == undefined) {
-        let error = new Error(400, 'Algum dos campos deve estar informados.');
-        return res.status(400).send(error);
+    if(
+        product.is_name_empty()     && 
+        product.is_quantity_empty() && 
+        product.is_price_empty()
+    ) {
+        return res.status(400).send(new Error().getMessage('012'));
     }
 
     try {
@@ -220,13 +192,10 @@ const patchProduct = async function (req, res) {
             values: [product_id]
         });
 
-        if(product_data === null) {
-            let error = new Error(404, 'O id do produto informado não está na base de dados.');
-            return res.status(404).send(error);
-        }
-    } catch (e) {
-        let error = new Error(400, 'Erro no processamento do produto.');
-        return res.status(400).send(error); 
+        if(product_data === null) { return res.status(404).send(new Error().getMessage('011')) }
+    } catch (e) {;
+        console.log(e);
+        return res.status(500).send(new Error().getMessage('107')); 
     }
 
     let quantity_valid = true;
@@ -240,45 +209,40 @@ const patchProduct = async function (req, res) {
         query_update_values.push(name);
     }
     if(quantity !== undefined) { 
-        quantity_valid = is_valid_quantity(quantity); 
-        
-        if(quantity_valid === false) { compilation_errors['quantity'] = 'Insira uma quantidade válida'; }
+        quantity_valid = product.is_valid_quantity(); 
+        if(quantity_valid === false) { compilation_errors['quantity'] = 'Insira uma quantidade válida' }
 
         query_update_text.push(`quantity = $${query_update_text.length + 1}`);
-        query_update_values.push(quantity);
+        query_update_values.push(product.quantity);
     }
     if(price !== undefined) { 
-        price_valid = is_valid_price(price); 
+        price_valid = product.is_valid_price(); 
 
         if(price_valid === false) { compilation_errors['price'] = 'Insira um preço válido.'; }
 
         query_update_text.push(`price = $${query_update_text.length + 1}`);
-        query_update_values.push(price);
+        query_update_values.push(product.price);
     }
 
-    let dateTime = getDate();
+    let dateTime = new Datetime().getTimestamp();
     query_update_text.push(`last_update = $${query_update_text.length + 1}`);
     query_update_values.push(dateTime);
 
-    if(quantity_valid === false || price_valid === false) {
-        let error = new Error(400, compilation_errors);
-        return res.status(400).send(error);
-    };
+    if(quantity_valid === false || price_valid === false) { return res.status(400).send(compilation_errors) };
 
     try {
         let fields_length = query_update_text.length;
         query_update_text = query_update_text.join(',');
 
-        const patchedProductChoosed = await db.none({
+        await db.none({
             text: `UPDATE products SET ${query_update_text} WHERE product_id = $${fields_length + 1}` ,
             values: [...query_update_values, product_id]
         });
 
-        return res.status(204).send('');
+        return res.status(204).send();
     } catch(e) {
         console.log(e);
-        let error = new Error(400, 'Erro ao atualizar o produto.');
-        return res.status(400).send(error);
+        return res.status(500).send(new Error().getMessage('110'));
     }
 }
 
