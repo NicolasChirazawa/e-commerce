@@ -20,13 +20,24 @@ const registerUser = async function (req, res) {
     };
 
     try {
-        let is_user_already_created = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE username = $1 OR email = $2',
-            values: [user.username, user.email]
+        const is_username_already_used = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE username = $1',
+            values: [user.username]
         });
 
-        if(is_user_already_created !== null) {
+        const is_email_already_used = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE email = $1',
+            values: [user.email]
+        });
+
+        if(is_username_already_used !== null && is_email_already_used != null) {
             return res.status(400).send(new Error().getMessage('002'));
+        }
+        if(is_username_already_used !== null) {
+            return res.status(400).send(new Error().getMessage('007'));
+        }
+        if(is_email_already_used !== null) {
+            return res.status(400).send(new Error().getMessage('008'));
         }
     } catch (e) {
         console.log(e);
@@ -85,7 +96,7 @@ const loginUser = async function (req, res) {
     const { username, password, email } = req?.body;
     const user = new User(username, password, email);
 
-    if (user.is_username_empty() && user.is_password_empty()) { return res.status(400).send(new Error().getMessage('003')) }
+    if (user.is_username_empty() && user.is_email_empty()) { return res.status(400).send(new Error().getMessage('003')) }
     if (user.is_password_empty()) { return res.status(400).send(new Error().getMessage('004')) }
 
     const loginMethodChoosed = (!(user.is_username_empty()) ? 
@@ -102,7 +113,7 @@ const loginUser = async function (req, res) {
             values: [loginMethodChoosed.value]
         });
 
-        password_crypto_verification = await bcrypt.compare(password, user_data.password);
+        password_crypto_verification = await bcrypt.compare(user.password, user_data.password);
 
         if(password_crypto_verification === false) {
             return res.status(400).send(new Error().getMessage('005'));
@@ -119,7 +130,7 @@ const loginUser = async function (req, res) {
             {expiresIn: '1h'}
         );
 
-        return res.status(200).send({ token: token_user });
+        return res.status(201).send({ token: token_user });
     } catch(e) {
         console.log(e);
         return res.status(500).send(new Error().getMessage('102'));
@@ -213,9 +224,9 @@ const updateUser = async function (req, res) {
         email_conditions.length    > 0
     ) {
         let compilation_errors = {
-            username: username_conditions.description(),
-            password: password_conditions.description(),
-            email:    email_conditions.description()
+            username: username_conditions.description,
+            password: password_conditions.description,
+            email:    email_conditions.description
         }
         return res.status(400).send(compilation_errors);
     }
@@ -249,6 +260,20 @@ const deleteUser = async function (req, res) {
     const user_id = req.params.user_id; 
 
     try {
+        const user = await db.oneOrNone({
+            text: 'SELECT * FROM users WHERE user_id = $1',
+            values: [user_id]
+        });
+
+        if(user === null) {
+            return res.status(404).send(new Error().getMessage('006'));
+        }
+    } catch {
+        console.log(e);
+        return res.status(404).send(new Error().getMessage('104'));
+    }
+
+    try {
         await db.tx(async (t) => {
             
             const deleted_shopping_carts = await t.none({
@@ -265,6 +290,7 @@ const deleteUser = async function (req, res) {
         });
         return res.status(204).send();
     } catch (e) {
+        console.log(e);
         return res.status(400).send(new Error().getMessage('106'));
     }
 }
