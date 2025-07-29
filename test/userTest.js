@@ -220,7 +220,7 @@ describe('Integrated tests', async () => {
         });
     });
 
-    test('POST /Login', async (inside) => {
+    test('POST "/Login"', async (inside) => {
         await inside.test('Need to fill username or email', async() => {
             const body = {
                 password: 'teste'

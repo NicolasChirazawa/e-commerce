@@ -1,3 +1,5 @@
+const db = require('../bd_connection');
+
 class User {
     constructor(username, password, email) {
         this.username = username;
@@ -80,6 +82,66 @@ class User {
         }
         return this.email.length === 0
     }
+
+    async is_username_on_database() {
+        try{
+            const is_username_already_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE username = $1',
+                values: [this.username]
+            });
+
+            return {
+                status: 'success',
+                response: is_username_already_used !== null,
+            }
+        } catch (e) {
+            console.log(e);
+            return {
+                status: 'failed',
+                response: '100',
+            }
+        }
+    }
+
+    async is_email_on_database() {
+        try{
+            const is_email_already_used = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE email = $1',
+                values: [this.email]
+            });
+
+            return {
+                status: 'success',
+                response: is_email_already_used !== null,
+            }
+        } catch (e) {
+            console.log(e);
+            return {
+                status: 'failed',
+                response: '100',
+            }
+        }
+    }
+
+    async search_user(user_id) {
+        try {
+            const choosedUser = await db.oneOrNone({
+                text: 'SELECT * FROM users WHERE user_id = $1',
+                values: [user_id]
+            });
+
+            return {
+                status: 'success',
+                response: choosedUser
+            };
+        } catch (e) {
+            console.log(e);
+            return {
+                status: 'failed',
+                response: '104'
+            };
+        };
+    };
 }
 
 module.exports = User;

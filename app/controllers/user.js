@@ -19,34 +19,23 @@ const registerUser = async function (req, res) {
         return res.status(400).send(new Error().getMessage('001'));
     };
 
-    try {
-        const is_username_already_used = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE username = $1',
-            values: [user.username]
-        });
+    const is_username_on_database = await user.is_username_on_database();
+    if(is_username_on_database.status === 'failed') { return res.status(500).send(new Error.getMessage(is_username_on_database.response)) }
 
-        const is_email_already_used = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE email = $1',
-            values: [user.email]
-        });
 
-        if(is_username_already_used !== null && is_email_already_used != null) {
-            return res.status(400).send(new Error().getMessage('002'));
-        }
-        if(is_username_already_used !== null) {
-            return res.status(400).send(new Error().getMessage('007'));
-        }
-        if(is_email_already_used !== null) {
-            return res.status(400).send(new Error().getMessage('008'));
-        }
-    } catch (e) {
-        console.log(e);
-        return res.status(500).send(new Error().getMessage('100')); 
-    }
 
-    let username_conditions = user.username_verification();
-    let password_conditions = user.password_verification();
-    let email_conditions    = user.email_verification();
+    const is_email_on_database = await user.is_email_on_database();
+    if(is_email_on_database.status === 'failed') { return res.status(500).send(new Error.getMessage(is_email_on_database.response)) }
+
+    if(is_username_on_database.response === true && is_email_on_database.response === true) { 
+        return res.status(400).send(new Error().getMessage('002'));
+    };
+    if(is_username_on_database.response === true) { return res.status(400).send(new Error().getMessage('007')) }
+    if(is_email_on_database.response === true) { return res.status(400).send(new Error().getMessage('008')) }
+
+    const username_conditions = user.username_verification();
+    const password_conditions = user.password_verification();
+    const email_conditions    = user.email_verification();
 
     if(
         username_conditions.length > 0 || 
@@ -58,7 +47,6 @@ const registerUser = async function (req, res) {
             password: password_conditions.description,
             email: email_conditions.description
         }
-
         return res.status(400).send(compilation_errors);
     }
 
@@ -67,10 +55,9 @@ const registerUser = async function (req, res) {
         const hashed_password = await bcrypt.hash(user.password, saltrounds);
 
         let insert_user = '';
-        const dateTime = new Datetime().getTimestamp();
 
         await db.tx(async (t) => {
-            
+            const dateTime = new Datetime().getTimestamp();
             insert_user = await t.one({
                 text: 'INSERT INTO users (username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING user_id, username, password, email, created_at',
                 values: [user.username, hashed_password, user.email, dateTime]
@@ -83,7 +70,7 @@ const registerUser = async function (req, res) {
             });
 
             return t.batch([insert_user, create_shopping_cart]);
-        })
+        });
 
         return res.status(201).send(insert_user);
     } catch (e) {
@@ -100,24 +87,19 @@ const loginUser = async function (req, res) {
     if (user.is_password_empty()) { return res.status(400).send(new Error().getMessage('004')) }
 
     const loginMethodChoosed = (!(user.is_username_empty()) ? 
-    {method: 'username', value: user.username} : 
-    {method: 'email',    value: user.email});
+        {method: 'username', value: user.username} : 
+        {method: 'email',    value: user.email});
 
     try {
-        let user_search = '';
         const dateTime = new Datetime().getTimestamp();
-        let password_crypto_verification = '';
 
-        user_data = await db.oneOrNone({
+        let user_data = await db.oneOrNone({
             text: `SELECT user_id, password FROM users WHERE ${loginMethodChoosed.method} = $1`,
             values: [loginMethodChoosed.value]
         });
 
-        password_crypto_verification = await bcrypt.compare(user.password, user_data.password);
-
-        if(password_crypto_verification === false) {
-            return res.status(400).send(new Error().getMessage('005'));
-        }
+        const password_crypto_verification = await bcrypt.compare(user.password, user_data.password);
+        if(password_crypto_verification === false) { return res.status(400).send(new Error().getMessage('005')) }
 
         await db.none({
             text: `UPDATE users SET last_login = $1 WHERE user_id = $2`,
@@ -125,7 +107,7 @@ const loginUser = async function (req, res) {
         });
 
         const token_user = jwt.sign (
-            {user_id: user_search.user_id}, 
+            {user_id: user_data.user_id}, 
             process.env.JWT_SECRET,
             {expiresIn: '1h'}
         );
@@ -148,28 +130,19 @@ const selectAllUsers = async function (_, res) {
 }
 
 const selectUser = async function (req, res) {
+    const { user_id } = req?.params;
+    const user = new User();
 
-    const user_id = req.params.user_id; 
+    const choosedUser = await user.search_user(user_id);
+    
+    if(choosedUser.status   === 'failed') { return res.status(500).send(new Error().getMessage(choosedUser.response)) }
+    if(choosedUser.response === null    ) { return res.status(404).send(new Error().getMessage('006')) }
 
-    try {
-        const choosedUser = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE user_id = $1',
-            values: [user_id]
-        });
-
-        if(choosedUser === null) {
-            return res.status(404).send(new Error().getMessage('006'));
-        };
-
-        return res.status(200).send(choosedUser);
-    } catch (e) {
-        console.log(e);
-        return res.status(500).send(new Error().getMessage('104'));
-    }
+    return res.status(200).send(choosedUser.response);
 }
 
 const updateUser = async function (req, res) {
-    const user_id = req.params.user_id;
+    const { user_id } = req?.params;
     const { username, password, email } = req?.body;
     const user = new User(username, password, email);
 
@@ -182,14 +155,10 @@ const updateUser = async function (req, res) {
     }
 
     try {
-        let user_data = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE user_id = $1',
-            values: [user_id]
-        });
+        const user_data = await user.search_user(user_id);
 
-        if (user_data === null) {
-            return res.status(404).send(new Error().getMessage('006'));
-        };
+        if(user_data.status   === 'failed') { return res.status(500).send(new Error().getMessage(choosedUser.response)) }
+        if(user_data.response === null    ) { return res.status(404).send(new Error().getMessage('006')) }
 
         if (user_data.username !== user.username) {
             const test_username_used = await db.oneOrNone({
@@ -256,22 +225,13 @@ const updateUser = async function (req, res) {
 }
 
 const deleteUser = async function (req, res) {
+    const { user_id } = req?.params; 
+    const user = new User();
 
-    const user_id = req.params.user_id; 
+    const user_data = await user.search_user(user_id);
 
-    try {
-        const user = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE user_id = $1',
-            values: [user_id]
-        });
-
-        if(user === null) {
-            return res.status(404).send(new Error().getMessage('006'));
-        }
-    } catch {
-        console.log(e);
-        return res.status(404).send(new Error().getMessage('104'));
-    }
+    if(user_data.status   === 'failed') { return res.status(500).send(new Error().getMessage(user_data.response)) }
+    if(user_data.response === null    ) { return res.status(404).send(new Error().getMessage('006')) }
 
     try {
         await db.tx(async (t) => {
@@ -296,25 +256,25 @@ const deleteUser = async function (req, res) {
 }
 
 const patchUser = async function (req, res) {
-    const user_id = req.params.user_id;
+    const { user_id } = req?.params;
     const { username, password, email } = req?.body;
     const user = new User(username, password, email);
 
-    if(user.is_username_empty() && user.is_password_empty() && user.is_email_empty()) {
+    if(
+        user.is_username_empty() && 
+        user.is_password_empty() && 
+        user.is_email_empty()
+    ) {
         return res.status(400).send(new Error().getMessage('009'));
     }
 
     try {
-        let user_data = await db.oneOrNone({
-            text: 'SELECT * FROM users WHERE user_id = $1',
-            values: [user_id]
-        });
+        const user_data = await user.search_user(user_id);
 
-        if(user_data === null) {
-            return res.status(404).send(new Error().getMessage('006'));
-        };
+        if(user_data.status   === 'failed') { return res.status(500).send(new Error().getMessage(choosedUser.response)) }
+        if(user_data.response === null    ) { return res.status(404).send(new Error().getMessage('006')) }
 
-         if(user.username !== undefined && user_data.username !== user.username) {
+        if(user.username !== undefined && user_data.username !== user.username) {
             const test_username_used = await db.oneOrNone({
                 text: 'SELECT * FROM users WHERE user_id <> $1 AND username = $2',
                 values: [user_id, user.username]
