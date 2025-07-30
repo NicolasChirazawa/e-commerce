@@ -16,22 +16,14 @@ const createProduct = async function (req, res) {
         return res.status(400).send(new Error().getMessage('001'));
     }
 
-    try{
-        let is_product_name_already_used = await db.oneOrNone({
-            text: 'SELECT * FROM products WHERE name = $1',
-            values: [name]
-        });
-
-        if(is_product_name_already_used !== null) { return res.status(400).send(new Error().getMessage('010')) }
-    } catch (e) {
-        console.log(e);
-        return res.status(500).send(new Error().getMessage('107'));
-    }
+    const is_product_on_database = await product.is_product_on_database();
+    if(is_product_on_database.status === 'failed') { return res.status(500).send(new Error().getMessage(is_product_on_database.response)) }
+    if(is_product_on_database.response === true  ) { return res.status(400).send(new Error().getMessage('010')) }
 
     let list_error = [];
     let compilation_errors = {};
     const quantity_validation = product.is_valid_quantity(); 
-    const price_validation = product.is_valid_price();
+    const price_validation    = product.is_valid_price();
     
     if(quantity_validation === false) {
         compilation_errors['quantity'] = 'Insira uma quantidade válida';
@@ -70,26 +62,18 @@ const selectAllProducts = async function (req, res) {
 }
 
 const selectProduct = async function (req, res) {
-    const product_id = req.params.product_id; 
+    const { product_id } = req?.params; 
+    const product = new Product();
 
-    try {
-        const choosedProduct = await db.oneOrNone ({
-            text: 'SELECT * FROM products WHERE product_id = $1',
-            values: [product_id]
-        });
+    const product_data = await product.search_product(product_id);
+    if(product_data.status === 'failed') { return res.status(500).send(new Error().getMessage(product_data.response)) }
+    if(product_data.response === null  ) { return res.status(404).send(new Error().getMessage('011')) }
 
-        if(choosedProduct === null) {
-            return res.status(404).send(new Error().getMessage('011'));
-        }
-
-        return res.status(200).send(choosedProduct);
-    } catch (e) {
-        return res.status(500).send(new Error().getMessage('109'));
-    }
+    return res.status(200).send(product_data.response);
 }
 
 const updateProduct = async function (req, res) {
-    const product_id = req.params.product_id;
+    const { product_id } = req?.params;
     const { name, quantity, price } = req?.body;
     const product = new Product(name, quantity, price);
 
@@ -102,12 +86,10 @@ const updateProduct = async function (req, res) {
     }
 
     try {
-        const product_data = await db.oneOrNone({
-            text: 'SELECT * FROM products WHERE product_id = $1',
-            values: [product_id]
-        });
-
-        if(product_data === null) { return res.status(404).send(new Error().getMessage('011')) }
+        const product_data = await product.search_product(product_id);
+        
+        if(product_data.status === 'failed') { return res.status(500).send(new Error().getMessage(product_data.response)) }
+        if(product_data.response === null  ) { return res.status(404).send(new Error().getMessage('011')) }
 
         if(product_data.name !== product.name) {
             const test_name_used = await db.oneOrNone({
@@ -115,9 +97,7 @@ const updateProduct = async function (req, res) {
                 values: [product.name, product_id]
             });
 
-            if(test_name_used !== null) {
-                return res.status(400).send(new Error().getMessage('010'));
-            }
+            if(test_name_used !== null) { return res.status(400).send(new Error().getMessage('010')) }
         }
     } catch (e) {
         console.log(e);
@@ -156,7 +136,7 @@ const updateProduct = async function (req, res) {
 
 const deleteProduct = async function (req, res) {
 
-    const product_id = req.params.product_id; 
+    const { product_id } = req?.params; 
 
     try {
         const deleted_product = await db.oneOrNone ({
@@ -186,17 +166,9 @@ const patchProduct = async function (req, res) {
         return res.status(400).send(new Error().getMessage('012'));
     }
 
-    try {
-        let product_data = await db.oneOrNone({
-            text: 'SELECT * FROM products WHERE product_id = $1',
-            values: [product_id]
-        });
-
-        if(product_data === null) { return res.status(404).send(new Error().getMessage('011')) }
-    } catch (e) {;
-        console.log(e);
-        return res.status(500).send(new Error().getMessage('107')); 
-    }
+    const product_data = await product.search_product(product_id);
+    if(product_data.status === 'failed') { return res.status(500).send(new Error().getMessage(product_data.response)) }
+    if(product_data.response === null  ) { return res.status(404).send(new Error().getMessage('011')) }
 
     let quantity_valid = true;
     let price_valid = true;
@@ -224,11 +196,11 @@ const patchProduct = async function (req, res) {
         query_update_values.push(product.price);
     }
 
+    if(quantity_valid === false || price_valid === false) { return res.status(400).send(compilation_errors) };
+
     let dateTime = new Datetime().getTimestamp();
     query_update_text.push(`last_update = $${query_update_text.length + 1}`);
     query_update_values.push(dateTime);
-
-    if(quantity_valid === false || price_valid === false) { return res.status(400).send(compilation_errors) };
 
     try {
         let fields_length = query_update_text.length;
