@@ -16,6 +16,11 @@ class Error {
             '012': 'Pelo menos um dos campos deve estar informado',
             '013': 'É necessário se logar para usar esse endpoint',
             '014': 'O token usado é inválido',
+            '015': 'Insira uma quantidade válida no carrinho',
+            '016': 'Foi adicionado uma quantidade maior que o estoque disponível',
+            '017': 'Não foi encontrado o carrinho de compra',
+            '018': 'Não foi encontrado o item informado no carrinho de compra',
+            '019': 'Este item já foi adicionado ao carrinho',
             '100': 'Erro no processamento do usuário',
             '101': 'Erro na criação usuário com o carrinho de compras',
             '102': 'Erro no processamento do login',
@@ -23,11 +28,17 @@ class Error {
             '104': 'Erro no processamento do usuário',
             '105': 'Erro ao atualizar o usuário',
             '106': 'Erro ao deletar o usuário',
-            '107': 'Erro no processamento do item',
-            '108': 'Erro ao criar o item',
-            '109': 'Erro ao selecionar o item',
-            '110': 'Erro ao atualizar o item',
-            '111': 'Erro ao deletar o item'
+            '107': 'Erro no processamento do produto',
+            '108': 'Erro ao criar o produto',
+            '109': 'Erro ao selecionar o produto',
+            '110': 'Erro ao atualizar o produto',
+            '111': 'Erro ao deletar o produto',
+            '112': 'Erro ao adicionar um item no carrinho de compra',
+            '113': 'Erro no processamento do carrinho de compra',
+            '114': 'Ocorreu um erro na busca do produto no carrinho de compra',
+            '115': 'Ocorreu um erro na deleção do produto no carrinho de compra',
+            '116': 'Ocorreu um erro ao atualizar a quantidade do produto no carrinho de compra',
+            '117': 'Erro no processamento dos carrinhos de compra'
         };
     }
 
