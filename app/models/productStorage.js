@@ -57,6 +57,7 @@ class ProductStorage extends Product {
             }
         }
     }
+
 }
 
 module.exports = ProductStorage;

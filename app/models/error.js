@@ -21,6 +21,7 @@ class Error {
             '017': 'Não foi encontrado o carrinho de compra',
             '018': 'Não foi encontrado o item informado no carrinho de compra',
             '019': 'Este item já foi adicionado ao carrinho',
+            '020': 'Método de pagamento inválido',
             '100': 'Erro no processamento do usuário',
             '101': 'Erro na criação usuário com o carrinho de compras',
             '102': 'Erro no processamento do login',
@@ -38,7 +39,8 @@ class Error {
             '114': 'Ocorreu um erro na busca do produto no carrinho de compra',
             '115': 'Ocorreu um erro na deleção do produto no carrinho de compra',
             '116': 'Ocorreu um erro ao atualizar a quantidade do produto no carrinho de compra',
-            '117': 'Erro no processamento dos carrinhos de compra'
+            '117': 'Erro no processamento dos carrinhos de compra',
+            '118': 'Erro no processamento do pagamento'
         };
     }
 

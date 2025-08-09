@@ -1,5 +1,6 @@
 const ProductStorage = require('../models/productStorage.js');
 const ShoppingCart = require('../models/shoppingCart.js');
+const CartProducts = require('../models/cartProducts.js');
 const Datetime = require('../models/datetime.js');
 const Error = require('../models/error.js');
 
@@ -61,9 +62,11 @@ const selectCurrentCart = async function (_, res) {
     try {
         const request = await db.any({
             text: (
-                'SELECT Cart_Products.* FROM Shopping_Cart ' +
+                'SELECT Cart_Products.*, Products.name FROM Shopping_Cart ' +
                 'INNER JOIN Cart_Products ON Cart_Products.Shopping_Cart_id = Shopping_Cart.Shopping_Cart_id ' +
-                'WHERE Shopping_Cart.user_id = $1 AND Shopping_Cart.Shopping_Cart_Id = $2'
+                'INNER JOIN Products ON Products.product_id = Cart_Products.product_id ' +
+                'WHERE Shopping_Cart.user_id = $1 AND Shopping_Cart.Shopping_Cart_Id = $2 ' +
+                'ORDER BY Cart_Products.product_id'
             ),
             values: [shoppingCart.user_id, shoppingCart.shopping_cart_id]
         });
@@ -239,40 +242,24 @@ const updateProductsPrice = async function (_, res) {
 
     let shoppingCart = new ShoppingCart(user_id);
 
-    const current_cart_user = await shoppingCart.searchCurrentCart();
-    if(current_cart_user.status   === 'failed') { return res.status(500).send(new Error().getMessage(current_cart_user.response)) }
+    let current_cart_user = await shoppingCart.searchCurrentCart();
+    if(current_cart_user.status === 'failed') { return res.status(500).send(new Error().getMessage(current_cart_user.response)) }
 
-    shoppingCart = new ShoppingCart(user_id, current_cart_user.response.shopping_cart_id);
+    current_cart_user = current_cart_user.response;
+
+    shoppingCart = new ShoppingCart(user_id, current_cart_user.shopping_cart_id);
  
     const current_cart_product = await shoppingCart.searchProductsCart();
-    if(current_cart_user.status   === 'failed') { return res.status(500).send(new Error().getMessage(current_cart_user.response)) }
+    if(current_cart_user.status === 'failed') { return res.status(500).send(new Error().getMessage(current_cart_user.response)) }
 
     const products_cart = current_cart_product.response;
 
-    let update_prices = [];
-    for(let i = 0; i < products_cart.length; i++) {
-        let product_data = await db.oneOrNone({
-            text: 'SELECT * FROM Products WHERE product_id = $1',
-            values: [products_cart[i].product_id]
-        });
+    const cartProducts = new CartProducts(shoppingCart.shopping_cart_id, products_cart);
 
-        const product = new ProductStorage(product_data.name, product_data.quantity, product_data.price, products_cart[i].product_id);
+    const update_prices = await cartProducts.updateProductPrices();
+    if(update_prices.status === 'failed') { return res.status(500).send(new Error().getMessage(update_prices.response)) }
 
-        if(products_cart[i].price !== product.price) {
-            update_prices.push(`O produto ${product.name} teve uma atualização de preço. De ${products_cart[i].price} a ${product.price}`);
-
-            try{
-                await db.none({
-                    text: 'UPDATE Cart_Products SET price = $1 WHERE shopping_cart_id = $2 AND product_id = $3',
-                    values: [product.price, shoppingCart.shopping_cart_id, product.product_id]
-                });
-            } catch (e) {
-                console.log(e);
-                return res.status(500).send(new Error().getMessage('116'))
-            }
-        };
-    };
-    return res.status(200).send({message: update_prices});
+    return res.status(200).send(update_prices.response);
 };
 
 const verifyProductsStorage = async function (_, res) {
@@ -290,20 +277,12 @@ const verifyProductsStorage = async function (_, res) {
 
     const products_cart = current_cart_product.response;
 
-    let insufficient_storage = [];
-    for(let i = 0; i < products_cart.length; i++) {
-        let product_data = await db.oneOrNone({
-            text: 'SELECT * FROM Products WHERE product_id = $1',
-            values: [products_cart[i].product_id]
-        });
+    const cartProducts = new CartProducts(shoppingCart.shopping_cart_id, products_cart);
 
-        const product = new ProductStorage(product_data.name, product_data.quantity, product_data.price, products_cart[i].product_id);
+    const insufficient_storage = await cartProducts.verifyStorage();
+    if(insufficient_storage.status === 'failed') { return res.status(500).send(new Error().getMessage(storage_products.response)) }
 
-        if(products_cart[i].quantity > product.quantity) {
-            insufficient_storage.push(`O produto ${product.name} tem um pedido maior do que o estoque disponivel. Pedido: ${products_cart[i].quantity}; Disponível: ${product.quantity}`);
-        };
-    };
-    return res.status(200).send({message: insufficient_storage});
+    return res.status(200).send({ message: insufficient_storage.response });
 };
 
 module.exports = { selectAllCarts, selectCart, selectCurrentCart, addProductCart, updateQuantityCart, eraseProductCart, updateProductsPrice, verifyProductsStorage }

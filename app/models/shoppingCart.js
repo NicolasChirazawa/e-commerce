@@ -28,14 +28,14 @@ class shoppingCart {
 
     async searchProductsCart() {
         try {
-            const is_item_on_user_cart = await db.any({
+            const user_cart_data = await db.any({
                 text: 'SELECT * FROM Cart_Products WHERE shopping_cart_id = $1',
                 values: [this.shopping_cart_id]
             });
 
             return {
                 status: 'success',
-                response: is_item_on_user_cart
+                response: user_cart_data
             }
         } catch (e) {
             console.log(e);
@@ -84,6 +84,13 @@ class shoppingCart {
                 response: '112'
             }
         } 
+    }
+
+    async changeStatusCart(status, datetime) {
+        await db.none({
+            text: 'UPDATE Shopping_Cart SET status = $1, last_update = $2 WHERE shopping_cart_id = $3',
+            values: [status, datetime, this.shopping_cart_id]
+        });
     }
 }
 

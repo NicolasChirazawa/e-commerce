@@ -3,7 +3,8 @@
     "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg-promise": "^11.14.0"
+    "pg-promise": "^11.14.0",
+    "stripe": "^18.4.0"
   },
   "scripts": {
     "start": "node --env-file=.env ./app/app.js",
