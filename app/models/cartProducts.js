@@ -55,14 +55,32 @@ class cartProducts {
                 values: [this.products[i].product_id]
             });
 
-            if(this.products[i].quantity > product_storage.quantity) {
-                insufficient_storage.push(`O produto ${product_storage.name} tem um pedido maior do que o estoque disponivel. Pedido: ${this.products[i].quantity}; Disponível: ${product_storage.quantity}`);
+            if(this.products[i].quantity > product_storage.quantity - product_storage.reserved) {
+                insufficient_storage.push(`O produto ${product_storage.name} tem um pedido maior do que o estoque disponivel. Pedido: ${this.products[i].quantity}; Disponível: ${product_storage.quantity - product_storage.reserved}`);
             };
         };
 
         return {
             status: 'success',
             response: insufficient_storage
+        };
+    };
+
+    async reserveProducts(datetime) {
+        for(let i = 0; i < this.products.length; i++) {
+            await db.none ({
+                text: 'UPDATE Products SET reserved = ((SELECT reserved FROM Products WHERE product_id = $1) + $2), last_update = $3 WHERE product_id = $1',
+                values: [this.products[i].product_id, this.products[i].quantity, datetime]
+            });
+        };
+    };
+
+    async unreserveProducts(datetime) {
+        for(let i = 0; i < this.products.length; i++) {
+            await db.none ({
+                text: 'UPDATE Products SET reserved = ((SELECT reserved FROM Products WHERE product_id = $1) - $2), last_update = $3 WHERE product_id = $1',
+                values: [this.products[i].product_id, this.products[i].quantity, datetime]
+            });
         };
     };
 

@@ -92,6 +92,42 @@ class shoppingCart {
             values: [status, datetime, this.shopping_cart_id]
         });
     }
+
+    async checkStatusCart() {
+        try {
+            let status = await db.one({
+                text: 'SELECT status FROM Shopping_Cart WHERE shopping_cart_id = $1',
+                values: [this.shopping_cart_id]
+            });
+            return {
+                status: 'success',
+                response: status
+            }
+        } catch (e) {
+            console.log(e);
+            return {
+                status: 'failed',
+                response: '120'
+            }
+        };
+    };
+
+    async changeStatusCart(status, datetime) {
+        await db.none({
+            text: 'UPDATE Shopping_Cart SET status = $1, last_update = $2 WHERE shopping_cart_id = $3',
+            values: [status, datetime, this.shopping_cart_id]
+        });
+    }
+
+    async createNewCart(datetime) {
+        const statusNewCart = 'Em aberto';
+        await db.none({
+            text: 'INSERT INTO Shopping_Cart (user_id, created_at, status) VALUES ($1, $2, $3)',
+            values: [this.user_id, datetime, statusNewCart]
+        });
+
+        return;
+    };
 }
 
 module.exports = shoppingCart;

@@ -6,7 +6,7 @@ class Payment {
         this.payment = payment;
     }
 
-    paymentValid() {
+    isPaymentMethodValid() {
         return (this.payment === 'Cartão' || this.payment === 'PIX')
     };
 
@@ -54,8 +54,42 @@ class Payment {
     };
 
     async paymentPIX(price) {
+        // O tempo para expirar é em segundos, nesse caso, são 15 minutos
+        const expireTimer = 60 * 15;
 
+        let createPIX;
+        try {
+            createPIX = await fetch('https://api.abacatepay.com/v1/pixQrCode/create', {
+                method: 'POST',
+                headers: {
+                    "Authorization": "Bearer " + process.env.ABACATE_SECRET_KEY,
+                    "Content-Type": "application/json"
+                }, body: JSON.stringify({
+                    "amount": price * 100,
+                    "expiresIn": expireTimer
+                })
+            }).then( async(response) => response.json() );
+
+            return {
+                status: 'success',
+                response: createPIX
+            }
+
+        } catch(e) {
+            console.log(e);
+            return {
+                status: 'failed',
+                response: '119'
+            }
+        }
+    };
+
+    async createNewPayment(shoppingCart_id, paymentMethod, price, paymentGateway, id, datetime) {
+        await db.none({
+            text: 'INSERT INTO Payments (shopping_cart_id, payment_form, amount, gateway, id, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+            values: [shoppingCart_id, paymentMethod, price, paymentGateway, id, datetime]
+        });
     }
-}
+};
 
 module.exports = Payment;
