@@ -207,7 +207,8 @@ describe('Integrated tests', async () => {
                 product_id: product_id,
                 name: 'Nome_teste',
                 quantity: 10,
-                price: '20'
+                price: '20', 
+                reserved: 0 
             };
 
             assert.deepEqual(result, expect_result);

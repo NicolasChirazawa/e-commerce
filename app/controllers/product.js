@@ -31,7 +31,7 @@ const createProduct = async function (req, res) {
     }
     if(price_validation === false) {
         compilation_errors['price'] = 'Insira um preço válido';
-        list_error.push('preco')
+        list_error.push('preco');
     }
 
     if(list_error.length > 0) { return res.status(400).send(compilation_errors) }
@@ -39,9 +39,10 @@ const createProduct = async function (req, res) {
     try {
         const dateTime = new Datetime().getTimestamp();
 
+        const reserved_product = 0;
         const product_created = await db.one ({
-            text: 'INSERT INTO products (name, quantity, price, created_at) VALUES ($1, $2, $3, $4) RETURNING product_id, name, quantity, price',
-            values: [product.name, product.quantity, product.price, dateTime]
+            text: 'INSERT INTO products (name, quantity, price, created_at, reserved) VALUES ($1, $2, $3, $4, $5) RETURNING product_id, name, quantity, price',
+            values: [product.name, product.quantity, product.price, dateTime, reserved_product]
         });
 
         return res.status(201).send(product_created);
