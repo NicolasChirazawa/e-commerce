@@ -1,4 +1,4 @@
-async function testarConexaoBanco(db) {
+async function testPostgresConnection(db) {
     try {
         const valor = await db.connect();
         valor.done();
@@ -11,4 +11,4 @@ async function testarConexaoBanco(db) {
     }
 }
 
-module.exports = { testarConexaoBanco }
+module.exports = { testPostgresConnection }
