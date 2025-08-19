@@ -73,32 +73,47 @@ ABACATE_SECRET_KEY = /* Chave do gateway de pagamento Abacate Pay */
 docker-compose up
 ```
 <h2 name="endpoint">📍 Endpoints API</h2>
+<h3>Users</h3>
 
-| rotas            | descrição                                          |
-| ---------------- | :---:                                              |
-| `POST/criarURL`  | Cria uma URL encurtada (seja customizada ou não).  |
-| `GET/path/:rota` | Direcionador da URL customizada.                   |
+| rotas                    | descrição                                                  |
+| ------------------------ | :---:                                                      |
+| `POST/register`          | Registra um usuário.                                       |
+| `POST/login`             | Loga no sistema para gerar um JWT.                         |
+| `GET/users`              | Apanha informações dos usuários.                           |
+| `GET/users:/user_id`     | Apanha informação do usuário selecionado.                  |
+| `PUT/users:/user_id`     | Atualiza todas as informações do usuário selecionado.      |
+| `DELETE/users:/user_id`  | Deleta um usuário específico.                              |
+| `PATCH/users:/user_id`   | Atualiza um ou mais campos de um usuário específico.       |
 
-<h3>POST/criarURL</h3>
+<h3>Products</h3>
 
-<h4>REQUEST</h4>
+| rotas                         | descrição                                                  |
+| ----------------------------- | :---:                                                      |
+| `POST/products`               | Registra um produto.                                       |
+| `GET/products`                | Apanha informações dos produtos.                           |
+| `GET/products:/product_id`    | Apanha informação do produto selecionado.                  |
+| `PUT/products:/product_id`    | Atualiza todas as informações do produto selecionado.      |
+| `DELETE/products:/product_id` | Deleta um produto específico.                              |
+| `PATCH/products:/product_id`  | Atualiza um ou mais campos de um produto específico.       |
 
-```JSON
-{
-  "url_original": "https://www.youtube.com/@Palpitando_123",
-  "url_customizada": "url_unica" // É um parâmetro opcional
-}
-```
+<h3>Shopping_Products</h3>
 
-<h4>RESPONSE</h4>
+| rotas                            | descrição                                                                |
+| -------------------------------- | :---:                                                                    |
+| `GET/shoppingCart`               | Apanha os itens de todos os carrinhos de compra.                         |
+| `GET/shoppingCart/:cart_id`      | Apanha os itens de um carrinho de compra específico                      |
+| `POST/currentCart/:product_id`   | Acrescenta um item no carrinho de compras atual.                         |
+| `GET/currentCart`                | Apanha informações do carrinho de compra atual do usuário.               |
+| `DELETE/currentCart/:product_id` | Deleta um produto do carrinho de compras atual do usuário.               |
+| `PATCH/currentCart/:product_id`  | Atualiza um atributo específico do carrinho de compras atual do usuário. |
+| `POST/updatePrice`               | Atualiza o preço dos itens do carrinho de compra atual do usuário.       |
+| `POST/verifyStorage`             | Verifica os itens do carrinho de compra atual.                           |
 
-```JSON
-{
-  "url_original": "https://www.youtube.com/@Palpitando_123",
-  "url_referencia": "url_unica",
-  "status": "Novo"
-}
-```
+<h3>Products</h3>
+
+| rotas                         | descrição                                                  |
+| ----------------------------- | :---:                                                      |
+| `POST/payment`                | Gera o código PIX para pagamento de um carrinho de compra. |
 
 <h2 name="bd">🧱 Banco de dados</h2>
 <img src="https://raw.githubusercontent.com/NicolasChirazawa/e-commerce/refs/heads/main/images/bd_model.png"/>
