@@ -1,8 +1,8 @@
-FROM node:lts-alpine
-COPY package.json ./
+FROM node:lts-alpine3.22
+WORKDIR /app
+COPY package* .
 RUN npm install
-RUN mkdir /app && cp -a /tmp/node_modules /app/
-COPY . /app/
-WORKDIR /app/
+COPY . .
 EXPOSE 3000
+EXPOSE 6379
 CMD ["npm", "start"]
