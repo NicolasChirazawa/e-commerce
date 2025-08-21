@@ -15,4 +15,4 @@ redisConnection.on("error", (err) => {
     console.log(`Erro ao conectar com o Redis ${err}`)
 })
 
-module.exports = { redisConnection };
+module.exports = { connectionObject };

@@ -1,4 +1,4 @@
-const connectionRedis = require('../redis_connection.js');
+const connectionRedis = require('../redis_connection.js').connectionObject;
 
 const { Queue, Worker } = require('bullmq');
 const Datetime = require('../models/datetime.js');
